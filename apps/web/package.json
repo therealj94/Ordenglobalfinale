@@ -1,0 +1,43 @@
+{
+  "name": "genesis-id-web",
+  "version": "1.0.0",
+  "description": "GENESIS ID - Facial verification platform like Veriff Station",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write .",
+    "test": "jest"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "next": "^14.0.0",
+    "@veriff/sdk": "^1.20.0",
+    "axios": "^1.6.5",
+    "typescript": "^5.3.0",
+    "zustand": "^4.4.0",
+    "react-hot-toast": "^2.4.1",
+    "next-auth": "^4.24.0",
+    "framer-motion": "^10.16.0",
+    "tailwindcss": "^3.3.0",
+    "clsx": "^2.0.0",
+    "@headlessui/react": "^1.7.0",
+    "react-icons": "^4.12.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/node": "^20.0.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "prettier": "^3.0.0",
+    "eslint": "^8.50.0",
+    "eslint-config-next": "^14.0.0",
+    "jest": "^29.7.0",
+    "@testing-library/react": "^14.1.0"
+  }
+}
