@@ -92,7 +92,8 @@ npm run dev                 # http://localhost:3001
 - **[VERIFICATION_ENGINE.md](./VERIFICATION_ENGINE.md)** - How GENESIS ID's own verification pipeline works
 - **[API.md](./API.md)** - Complete API endpoint reference
 - **[INTEGRATION.md](./INTEGRATION.md)** - Running the full ecosystem locally
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - AWS RDS, ECS, ALB, Route 53
+- **[DEPLOYMENT_CLOUD.md](./DEPLOYMENT_CLOUD.md)** - Simple cloud deploy: Render + Vercel + custom domain
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Full AWS: RDS, ECS, ALB, Route 53
 - **[packages/kyc-sdk/README.md](./packages/kyc-sdk/README.md)** - How other apps (Veta Wallet, My Token Pay) integrate
 
 ## 🔌 API Endpoints (summary — see API.md for full reference)

@@ -1,0 +1,65 @@
+databases:
+  - name: genesis-id-db
+    databaseName: genesis_id_db
+    user: genesis_id_user
+    plan: starter
+
+services:
+  - type: web
+    name: genesis-id-api
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DB_HOST
+        fromDatabase:
+          name: genesis-id-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: genesis-id-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: genesis-id-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: genesis-id-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: genesis-id-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      # Fill these in manually in the Render dashboard after the first deploy
+      # (sync: false means Render prompts you instead of guessing a value):
+      - key: CORS_ORIGIN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: EMAIL_SERVICE
+        value: gmail
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

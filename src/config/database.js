@@ -39,6 +39,15 @@ module.exports = {
       timestamps: true,
       underscored: true
     },
+    // Managed Postgres providers (Render, RDS, etc.) require SSL on their
+    // public endpoint. rejectUnauthorized: false because these providers
+    // use certs not chained to the default Node CA store.
+    dialectOptions: process.env.DB_SSL === 'false' ? {} : {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    },
     pool: {
       max: 5,
       min: 0,
