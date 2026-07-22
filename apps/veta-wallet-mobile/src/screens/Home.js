@@ -1,26 +1,32 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, Image, ScrollView, Pressable, RefreshControl, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C, G } from '../theme';
 import { Logo, TokenIcon, ActionBtn, IconBtn, SectionHead, useToast, hap } from '../ui';
+import { useUser } from '../user';
 import { TOKENS, TOTAL, money, qtyFmt, SHORT_ADDR } from '../data';
 
 export default function Home({ nav }) {
   const [hidden, setHidden] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const toast = useToast();
+  const { initials, photo, gid } = useUser();
   const onRefresh = () => { setRefreshing(true); hap(); setTimeout(() => { setRefreshing(false); toast('Precios actualizados'); }, 900); };
 
   return (
     <View style={{ flex: 1 }}>
       <View style={styles.acct}>
-        <Pressable onPress={() => nav.go('settings')}>
-          <LinearGradient colors={G.gold} style={styles.avatar}><Text style={styles.avatarTxt}>JE</Text></LinearGradient>
+        <Pressable onPress={() => { hap(); nav.go('gid'); }}>
+          {photo ? (
+            <View style={styles.avatarRing}><Image source={{ uri: photo }} style={styles.avatarImg} /></View>
+          ) : (
+            <LinearGradient colors={G.gold} style={styles.avatar}><Text style={styles.avatarTxt}>{initials}</Text></LinearGradient>
+          )}
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.acctName}>Cuenta Principal <Ionicons name="chevron-down" size={13} color={C.txt2} /></Text>
-          <Text style={styles.acctAddr}>{SHORT_ADDR}</Text>
+          <Text style={styles.acctAddr}>{gid || SHORT_ADDR}</Text>
         </View>
         <IconBtn icon="notifications" badge onPress={() => nav.go('notifs')} />
         <IconBtn icon="qr-code" onPress={() => nav.go('receive')} />
@@ -74,6 +80,8 @@ export default function Home({ nav }) {
 const styles = StyleSheet.create({
   acct: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 22, paddingBottom: 14, paddingTop: 4 },
   avatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  avatarRing: { width: 42, height: 42, borderRadius: 21, borderWidth: 1.5, borderColor: C.gold, overflow: 'hidden' },
+  avatarImg: { width: '100%', height: '100%' },
   avatarTxt: { color: C.darkText, fontWeight: '800', fontSize: 15 },
   acctName: { fontSize: 14.5, fontWeight: '700', color: C.txt },
   acctAddr: { fontSize: 11, color: C.txt3 },

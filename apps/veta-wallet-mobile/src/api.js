@@ -22,7 +22,9 @@ async function request(path, options = {}) {
   let data = null;
   try { data = await res.json(); } catch (e) {}
   if (!res.ok) {
-    throw new Error((data && data.error) || 'Algo salió mal. Intenta de nuevo.');
+    const err = new Error((data && data.error) || 'Algo salió mal. Intenta de nuevo.');
+    err.status = res.status;
+    throw err;
   }
   return data;
 }
@@ -42,6 +44,23 @@ export function forgotPassword({ email }) {
 export function kycVerifyUrl({ userId, onboardingToken, returnUrl }) {
   const params = new URLSearchParams({ userId, appName: APP_NAME, onboardingToken, returnUrl });
   return `${GENESIS_APP_URL}/embed/verify?${params.toString()}`;
+}
+
+// Full profile of the logged-in user — includes the GENESIS ID fields the
+// login response omits (gid, idCardPhoto, signature, nationality,
+// dateOfBirth, gidIssuedAt, gidExpiresAt), all sourced from the engine.
+export function me(accessToken) {
+  return request('/auth/me', { headers: { Authorization: `Bearer ${accessToken}` } });
+}
+
+export function refresh(refreshToken) {
+  return request('/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) });
+}
+
+// Public verification page for a GID — what the passport card's QR encodes,
+// so anyone can scan it to confirm the identity against GENESIS ID.
+export function verifyGidUrl(gid) {
+  return `${GENESIS_APP_URL}/verify-gid/${encodeURIComponent(gid)}`;
 }
 
 export async function saveSession({ accessToken, refreshToken, user }) {

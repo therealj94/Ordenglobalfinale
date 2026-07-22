@@ -5,10 +5,12 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../theme';
 import { Logo, Button3D, hap, useToast } from '../ui';
+import { useUser } from '../user';
 import * as api from '../api';
 
 export default function Auth({ nav }) {
   const toast = useToast();
+  const { setSessionFromLogin } = useUser();
   const [tab, setTab] = useState('login');
   const [showPw, setShowPw] = useState(false);
   const login = tab === 'login';
@@ -31,6 +33,7 @@ export default function Auth({ nav }) {
       if (login) {
         const data = await api.login({ email: email.trim(), password });
         await api.saveSession(data);
+        await setSessionFromLogin(data);
         toast(`Bienvenido, ${data.user.fullName || data.user.email}`);
         nav.go('home');
       } else {

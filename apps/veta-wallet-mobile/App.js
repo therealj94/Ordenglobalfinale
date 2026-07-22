@@ -4,6 +4,7 @@ import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from './src/theme';
 import { Nav, ToastCtx } from './src/ui';
+import { UserProvider } from './src/user';
 
 import Splash from './src/screens/Splash';
 import Auth from './src/screens/Auth';
@@ -12,12 +13,13 @@ import Home from './src/screens/Home';
 import TokenDetail from './src/screens/TokenDetail';
 import { Send, Receive, Buy, Swap } from './src/screens/Trade';
 import CardScreen from './src/screens/Card';
+import GidCard from './src/screens/GidCard';
 import { Remit, Activity, Notifications, Earn, Settings, Profile, MyTokenPay } from './src/screens/More';
 
 const SCREENS = {
   splash: Splash, auth: Auth, kyc: Kyc, seed: Seed, seedview: SeedView,
   home: Home, token: TokenDetail, send: Send, receive: Receive, buy: Buy, swap: Swap,
-  card: CardScreen, remit: Remit, activity: Activity, notifs: Notifications, earn: Earn, settings: Settings,
+  card: CardScreen, gid: GidCard, remit: Remit, activity: Activity, notifs: Notifications, earn: Earn, settings: Settings,
   profile: Profile, mytokenpay: MyTokenPay,
 };
 const TABS = [
@@ -91,6 +93,7 @@ export default function App() {
   );
 
   return (
+    <UserProvider>
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ExpoStatusBar style="light" />
       {isFull ? (
@@ -121,6 +124,7 @@ export default function App() {
         </Animated.View>
       )}
     </View>
+    </UserProvider>
   );
 }
 

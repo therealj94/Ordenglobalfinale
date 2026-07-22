@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, StyleSheet } from 'react-native';
+import { View, Text, Image, ScrollView, Pressable, TextInput, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C, G } from '../theme';
 import { Header, Logo, TokenIcon, Button3D, Card, ListRow, Toggle, SectionHead, useToast, hap } from '../ui';
+import { useUser } from '../user';
 import { TXNS, NOTIFS, TOKENS, money } from '../data';
 
 // ================= REMESAS =================
@@ -176,22 +177,35 @@ export function Settings({ nav }) {
   const [bio, setBio] = useState(true);
   const [notif, setNotif] = useState(true);
   const toast = useToast();
+  const { displayName, email, initials, photo, gid, logout } = useUser();
   return (
     <View style={{ flex: 1, paddingTop: 6 }}>
       <Header title="Ajustes" onBack={() => nav.go('home')} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 110 }}>
-        <LinearGradient colors={G.green} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.prof}>
-          <LinearGradient colors={G.gold} style={styles.profAv}><Text style={{ color: C.darkText, fontWeight: '800', fontSize: 19 }}>JE</Text></LinearGradient>
-          <View>
-            <Text style={styles.profName}>José Enamorado</Text>
-            <Text style={styles.profMail}>jose@ordenglobal.com</Text>
-            <View style={styles.kycBadge}><Ionicons name="checkmark-circle" size={12} color={C.up} /><Text style={styles.kycTxt}>KYC Verificado</Text></View>
-          </View>
-        </LinearGradient>
+        <Pressable onPress={() => { hap(); nav.go('gid'); }}>
+          <LinearGradient colors={G.green} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.prof}>
+            {photo ? (
+              <View style={styles.profAvRing}><Image source={{ uri: photo }} style={styles.profAvImg} /></View>
+            ) : (
+              <LinearGradient colors={G.gold} style={styles.profAv}><Text style={{ color: C.darkText, fontWeight: '800', fontSize: 19 }}>{initials}</Text></LinearGradient>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.profName}>{displayName}</Text>
+              <Text style={styles.profMail}>{email}</Text>
+              {gid ? (
+                <View style={styles.kycBadge}><Ionicons name="shield-checkmark" size={12} color={C.up} /><Text style={styles.kycTxt}>{gid}</Text></View>
+              ) : (
+                <View style={styles.kycBadge}><Ionicons name="checkmark-circle" size={12} color={C.up} /><Text style={styles.kycTxt}>KYC Verificado</Text></View>
+              )}
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={C.gold} />
+          </LinearGradient>
+        </Pressable>
 
         <Text style={styles.grpTitle}>CUENTA</Text>
         <View style={styles.group}>
-          <ListRow first icon="person" title="Información personal" onPress={() => nav.go('profile')} />
+          <ListRow first icon="shield-checkmark" title="Mi GENESIS ID" sub="Tu identidad verificada del ecosistema" onPress={() => nav.go('gid')} right={gid ? <Text style={styles.rv}>{gid}</Text> : undefined} />
+          <ListRow icon="person" title="Información personal" onPress={() => nav.go('profile')} />
           <ListRow icon="card" title="Mi tarjeta débito" onPress={() => nav.go('card')} />
           <ListRow icon="qr-code" title="Conectar MyTokenPay" sub="Pagos con ORIGEN" onPress={() => nav.go('mytokenpay')} />
           <ListRow icon="grid" title="Mis direcciones" onPress={() => toast('Libreta de direcciones')} />
@@ -212,7 +226,7 @@ export function Settings({ nav }) {
           <ListRow icon="help-circle" title="Ayuda y soporte" onPress={() => toast('Soporte: roa.corphn@gmail.com')} />
         </View>
 
-        <Button3D variant="ghost" title="Cerrar sesión" onPress={() => nav.go('auth')} />
+        <Button3D variant="ghost" title="Cerrar sesión" onPress={async () => { await logout(); nav.go('auth'); }} />
         <Text style={styles.foot}>Veta Wallet v1.0 · Orden Global{'\n'}Diseño por Monark Brand Labs</Text>
       </ScrollView>
     </View>
@@ -222,23 +236,42 @@ export function Settings({ nav }) {
 // ================= INFORMACIÓN PERSONAL (editable) =================
 export function Profile({ nav }) {
   const toast = useToast();
-  const v = useRef({ name: 'José Enamorado', email: 'jose@ordenglobal.com', phone: '+504 3346 7760', country: 'Honduras', address: 'Roatán, Islas de la Bahía', dni: '0801-1994-00000' }).current;
+  const { user, profile, displayName, email, initials, photo, gid } = useUser();
+  const v = useRef({
+    name: displayName,
+    email: email,
+    phone: user?.phone || '+504 3346 7760',
+    country: profile?.countryOfResidence || 'Honduras',
+    occupation: profile?.occupation || 'Roatán, Islas de la Bahía',
+  }).current;
   const fields = [
     { k: 'name', label: 'Nombre completo' },
     { k: 'email', label: 'Correo electrónico', keyboardType: 'email-address', autoCapitalize: 'none' },
     { k: 'phone', label: 'Teléfono', keyboardType: 'phone-pad' },
-    { k: 'country', label: 'País' },
-    { k: 'address', label: 'Dirección' },
-    { k: 'dni', label: 'Identidad / DNI' },
+    { k: 'country', label: 'País de residencia' },
+    { k: 'occupation', label: 'Ocupación' },
   ];
   return (
     <View style={{ flex: 1, paddingTop: 6 }}>
       <Header title="Información personal" onBack={() => nav.back()} />
       <ScrollView contentContainerStyle={{ padding: 22 }} keyboardShouldPersistTaps="handled">
         <View style={{ alignItems: 'center', marginBottom: 20 }}>
-          <LinearGradient colors={G.gold} style={styles.profAvBig}><Text style={{ color: C.darkText, fontWeight: '800', fontSize: 26 }}>JE</Text></LinearGradient>
-          <Pressable onPress={() => { hap(); toast('Cambiar foto de perfil'); }}><Text style={{ color: C.gold, fontWeight: '600', marginTop: 10 }}>Cambiar foto</Text></Pressable>
+          {photo ? (
+            <Pressable onPress={() => { hap(); nav.go('gid'); }} style={styles.profAvBigRing}><Image source={{ uri: photo }} style={styles.profAvBigImg} /></Pressable>
+          ) : (
+            <LinearGradient colors={G.gold} style={styles.profAvBig}><Text style={{ color: C.darkText, fontWeight: '800', fontSize: 26 }}>{initials}</Text></LinearGradient>
+          )}
+          <Pressable onPress={() => { hap(); nav.go('gid'); }}><Text style={{ color: C.gold, fontWeight: '600', marginTop: 10 }}>Ver mi GENESIS ID</Text></Pressable>
         </View>
+        {gid && (
+          <View style={{ marginBottom: 14 }}>
+            <Text style={styles.label}>GENESIS ID</Text>
+            <View style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+              <Text style={{ color: C.goldLt, fontWeight: '700', fontSize: 15, letterSpacing: 0.5 }}>{gid}</Text>
+              <Ionicons name="shield-checkmark" size={18} color={C.up} />
+            </View>
+          </View>
+        )}
         {fields.map((f) => (
           <View key={f.k} style={{ marginBottom: 14 }}>
             <Text style={styles.label}>{f.label}</Text>
@@ -292,6 +325,10 @@ function PayFeature({ icon, t, s, first }) {
 const styles = StyleSheet.create({
   label: { fontSize: 12, color: C.txt2, marginBottom: 7, fontWeight: '500' },
   profAvBig: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center' },
+  profAvBigRing: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderColor: C.gold, overflow: 'hidden' },
+  profAvBigImg: { width: '100%', height: '100%' },
+  profAvRing: { width: 56, height: 56, borderRadius: 28, borderWidth: 1.5, borderColor: C.gold, overflow: 'hidden' },
+  profAvImg: { width: '100%', height: '100%' },
   connBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(62,217,160,0.14)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, marginTop: 12, alignSelf: 'flex-start' },
   connTxt: { color: C.up, fontSize: 12, fontWeight: '600' },
   payFeat: { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 15, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
