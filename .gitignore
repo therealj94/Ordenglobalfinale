@@ -26,6 +26,7 @@ Thumbs.db
 apps/web/.next/
 apps/web/out/
 apps/web/dist/
+apps/web/next-env.d.ts
 
 # Database
 *.db
@@ -33,6 +34,8 @@ apps/web/dist/
 *.sqlite3
 
 # Misc
-.env.example
 .editorconfig
 coverage/
+
+# TypeScript build info
+*.tsbuildinfo

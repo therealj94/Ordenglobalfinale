@@ -5,6 +5,7 @@ export interface User {
   fullName?: string;
   phone?: string;
   status: 'pending' | 'verified' | 'rejected' | 'expired';
+  role?: 'user' | 'admin';
   createdAt: string;
   lastLogin?: string;
 }
@@ -83,11 +84,6 @@ export interface ApiResponse<T = any> {
   error?: string;
   message?: string;
   status: number;
-}
-
-// Admin types
-export interface AdminUser extends User {
-  role: 'admin' | 'moderator' | 'user';
 }
 
 export interface ManualReviewCase {

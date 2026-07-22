@@ -8,15 +8,19 @@ const { sequelize } = require('./models');
 const authRoutes = require('./routes/authRoutes');
 const appRoutes = require('./routes/appRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const kycRoutes = require('./routes/kycRoutes');
 const errorMiddleware = require('./middleware/errorMiddleware');
 
 const app = express();
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 app.use(morgan('combined'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Higher limit to allow base64-encoded document/selfie images from the KYC flow
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 // CORS
 const corsOptions = {
@@ -36,6 +40,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/apps', appRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/kyc', kycRoutes);
 
 // 404 handler
 app.use((req, res) => {

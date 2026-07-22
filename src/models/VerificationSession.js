@@ -37,7 +37,8 @@ module.exports = (sequelize) => {
       allowNull: true
     }
   }, {
-    timestamps: true
+    timestamps: true,
+    tableName: 'VerificationSessions'
   });
 
   return VerificationSession;

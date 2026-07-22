@@ -72,12 +72,25 @@ export const useAuth = () => {
     }
   }, [logout]);
 
-  useEffect(() => {
+  const fetchProfile = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
-    if (token) {
-      // Optionally fetch user data
+    if (!token) return null;
+
+    try {
+      const response = await apiClient.get<{ user: User }>('/auth/me');
+      setUser(response.data.user);
+      return response.data.user;
+    } catch (err) {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      setUser(null);
+      return null;
     }
   }, []);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   return {
     user,
@@ -88,6 +101,8 @@ export const useAuth = () => {
     login,
     logout,
     refreshToken,
-    isAuthenticated: !!user
+    fetchProfile,
+    isAuthenticated: !!user,
+    isAdmin: user?.role === 'admin'
   };
 };

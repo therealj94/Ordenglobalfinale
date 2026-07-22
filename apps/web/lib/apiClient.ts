@@ -38,7 +38,7 @@ class ApiClient {
               // Clear auth and redirect to login
               localStorage.removeItem('accessToken');
               localStorage.removeItem('refreshToken');
-              window.location.href = '/login';
+              window.location.href = '/auth/login';
               return Promise.reject(error);
             }
 
@@ -55,7 +55,7 @@ class ApiClient {
           } catch (refreshError) {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
-            window.location.href = '/login';
+            window.location.href = '/auth/login';
             return Promise.reject(refreshError);
           }
         }

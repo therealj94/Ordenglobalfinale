@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
+import { useRequireAdmin } from '@/hooks/useRequireAdmin';
 import { apiClient } from '@/lib/apiClient';
-import { ManualReviewCase } from '@/types';
+import DocumentViewer from '@/components/DocumentViewer';
 import toast from 'react-hot-toast';
 import {
   FiCheckCircle,
@@ -9,42 +10,66 @@ import {
   FiClock,
   FiUser,
   FiFileText,
-  FiMessageSquare,
-  FiLoader
+  FiLoader,
+  FiImage
 } from 'react-icons/fi';
 
+interface ReviewCase {
+  id: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+  user: {
+    id: string;
+    email: string;
+    fullName?: string;
+    phone?: string;
+    createdAt: string;
+  };
+  verification: {
+    id: string;
+    documentType?: string;
+    status: string;
+    documentFrontImage?: string;
+    documentBackImage?: string;
+    selfieImages?: string[];
+    rawData?: any;
+  };
+}
+
 export default function AdminReviewsPage() {
-  const [cases, setCases] = useState<ManualReviewCase[]>([]);
+  const { checking } = useRequireAdmin();
+  const [cases, setCases] = useState<ReviewCase[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCase, setSelectedCase] = useState<ManualReviewCase | null>(null);
+  const [selectedCase, setSelectedCase] = useState<ReviewCase | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [showDocs, setShowDocs] = useState(false);
 
-  useEffect(() => {
-    fetchReviewCases();
-  }, []);
-
-  const fetchReviewCases = async () => {
+  const fetchReviewCases = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get<ManualReviewCase[]>('/admin/manual-reviews?status=pending');
-      setCases(response.data);
+      const response = await apiClient.get('/admin/manual-reviews', {
+        params: { status: 'pending' }
+      });
+      setCases(response.data.cases);
     } catch (error) {
       toast.error('Failed to load review cases');
-      console.error(error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!checking) fetchReviewCases();
+  }, [checking, fetchReviewCases]);
 
   const handleApprove = async (caseId: string) => {
     try {
       setReviewingId(caseId);
-      await apiClient.post(`/admin/reviews/${caseId}/approve`, {
-        notes: reviewNotes
-      });
+      await apiClient.post(`/admin/reviews/${caseId}/approve`, { notes: reviewNotes });
       toast.success('Verification approved');
-      setCases(cases.filter((c) => c.id !== caseId));
+      setCases((prev) => prev.filter((c) => c.id !== caseId));
       setSelectedCase(null);
       setReviewNotes('');
     } catch (error) {
@@ -55,13 +80,15 @@ export default function AdminReviewsPage() {
   };
 
   const handleReject = async (caseId: string) => {
+    if (!reviewNotes.trim()) {
+      toast.error('Please add a reason before rejecting');
+      return;
+    }
     try {
       setReviewingId(caseId);
-      await apiClient.post(`/admin/reviews/${caseId}/reject`, {
-        notes: reviewNotes
-      });
+      await apiClient.post(`/admin/reviews/${caseId}/reject`, { notes: reviewNotes });
       toast.success('Verification rejected');
-      setCases(cases.filter((c) => c.id !== caseId));
+      setCases((prev) => prev.filter((c) => c.id !== caseId));
       setSelectedCase(null);
       setReviewNotes('');
     } catch (error) {
@@ -71,14 +98,14 @@ export default function AdminReviewsPage() {
     }
   };
 
+  if (checking) return null;
+
   return (
     <Layout withSidebar>
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Manual Review Queue</h1>
-          <p className="text-gray-600">
-            {cases.length} verification(s) pending manual review
-          </p>
+          <p className="text-gray-600">{cases.length} verification(s) pending manual review</p>
         </div>
 
         {loading ? (
@@ -98,7 +125,7 @@ export default function AdminReviewsPage() {
                 <div className="p-4 border-b border-gray-200 bg-gray-50">
                   <h2 className="font-semibold text-gray-900">Pending Cases</h2>
                 </div>
-                <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                <div className="divide-y divide-gray-200 max-h-[32rem] overflow-y-auto">
                   {cases.map((caseItem) => (
                     <button
                       key={caseItem.id}
@@ -114,6 +141,7 @@ export default function AdminReviewsPage() {
                         </p>
                       </div>
                       <p className="text-xs text-gray-500">{caseItem.user.email}</p>
+                      <p className="text-xs text-gray-500 mt-1">{caseItem.verification.documentType}</p>
                       <div className="mt-2 flex items-center text-xs text-orange-600">
                         <FiClock size={12} className="mr-1" />
                         Pending
@@ -128,7 +156,6 @@ export default function AdminReviewsPage() {
             <div className="lg:col-span-2">
               {selectedCase ? (
                 <div className="bg-white rounded-lg shadow overflow-hidden">
-                  {/* Header */}
                   <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100">
                     <h2 className="text-xl font-bold text-gray-900 mb-1">
                       {selectedCase.user.fullName || 'User'}
@@ -136,9 +163,7 @@ export default function AdminReviewsPage() {
                     <p className="text-gray-600 text-sm">{selectedCase.user.email}</p>
                   </div>
 
-                  {/* Content */}
                   <div className="p-6 space-y-6">
-                    {/* User Info */}
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-3">User Information</h3>
                       <div className="bg-gray-50 rounded p-4 space-y-2 text-sm">
@@ -159,56 +184,41 @@ export default function AdminReviewsPage() {
                       </div>
                     </div>
 
-                    {/* Verification Details */}
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-3">Verification Details</h3>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-gray-900">Verification Details</h3>
+                        <button
+                          onClick={() => setShowDocs(true)}
+                          className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          <FiImage className="mr-1" /> View Documents & Selfies
+                        </button>
+                      </div>
                       <div className="bg-gray-50 rounded p-4 space-y-2 text-sm">
                         <p>
                           <span className="text-gray-600">Document Type:</span>{' '}
-                          <span className="font-medium">
-                            {selectedCase.verification.documentType || 'N/A'}
-                          </span>
+                          <span className="font-medium">{selectedCase.verification.documentType || 'N/A'}</span>
                         </p>
                         <p>
-                          <span className="text-gray-600">Status:</span>{' '}
-                          <span
-                            className={`font-medium capitalize ${
-                              selectedCase.verification.status === 'approved'
-                                ? 'text-green-600'
-                                : 'text-red-600'
-                            }`}
-                          >
-                            {selectedCase.verification.status}
+                          <span className="text-gray-600">Selfie angles captured:</span>{' '}
+                          <span className="font-medium">
+                            {selectedCase.verification.selfieImages?.length || 0}
                           </span>
                         </p>
-                        {selectedCase.verification.rawData && (
-                          <details className="mt-2">
-                            <summary className="cursor-pointer text-blue-600 hover:underline">
-                              View Raw Data
-                            </summary>
-                            <pre className="mt-2 bg-white p-2 text-xs overflow-x-auto max-h-48">
-                              {JSON.stringify(selectedCase.verification.rawData, null, 2)}
-                            </pre>
-                          </details>
-                        )}
                       </div>
                     </div>
 
-                    {/* Review Notes */}
                     <div>
-                      <label className="block font-semibold text-gray-900 mb-2">
-                        Review Notes
-                      </label>
+                      <label className="block font-semibold text-gray-900 mb-2">Review Notes</label>
                       <textarea
                         value={reviewNotes}
                         onChange={(e) => setReviewNotes(e.target.value)}
-                        placeholder="Add your review notes here..."
+                        placeholder="Add your review notes here (required if rejecting)..."
                         className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500"
                         rows={4}
                       />
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="flex gap-3">
                       <button
                         onClick={() => handleApprove(selectedCase.id)}
@@ -216,16 +226,11 @@ export default function AdminReviewsPage() {
                         className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition flex items-center justify-center"
                       >
                         {reviewingId === selectedCase.id ? (
-                          <>
-                            <FiLoader className="animate-spin mr-2" />
-                            Processing...
-                          </>
+                          <FiLoader className="animate-spin mr-2" />
                         ) : (
-                          <>
-                            <FiCheckCircle className="mr-2" />
-                            Approve
-                          </>
+                          <FiCheckCircle className="mr-2" />
                         )}
+                        Approve
                       </button>
                       <button
                         onClick={() => handleReject(selectedCase.id)}
@@ -233,16 +238,11 @@ export default function AdminReviewsPage() {
                         className="flex-1 bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 transition flex items-center justify-center"
                       >
                         {reviewingId === selectedCase.id ? (
-                          <>
-                            <FiLoader className="animate-spin mr-2" />
-                            Processing...
-                          </>
+                          <FiLoader className="animate-spin mr-2" />
                         ) : (
-                          <>
-                            <FiXCircle className="mr-2" />
-                            Reject
-                          </>
+                          <FiXCircle className="mr-2" />
                         )}
+                        Reject
                       </button>
                     </div>
                   </div>
@@ -257,6 +257,10 @@ export default function AdminReviewsPage() {
           </div>
         )}
       </div>
+
+      {showDocs && selectedCase && (
+        <DocumentViewer verification={selectedCase.verification} onClose={() => setShowDocs(false)} />
+      )}
     </Layout>
   );
 }

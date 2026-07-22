@@ -24,10 +24,13 @@ class AuthController {
         status: 'pending'
       });
 
+      const onboardingToken = JWTService.generateOnboardingToken(user.id);
+
       res.status(201).json({
         message: 'User registered successfully',
         userId: user.id,
-        email: user.email
+        email: user.email,
+        onboardingToken
       });
     } catch (error) {
       console.error('Register error:', error);
@@ -198,12 +201,30 @@ class AuthController {
           id: user.id,
           email: user.email,
           fullName: user.fullName,
-          status: user.status
+          status: user.status,
+          role: user.role
         }
       });
     } catch (error) {
       console.error('Login error:', error);
       res.status(500).json({ error: 'Login failed' });
+    }
+  }
+
+  async me(req, res, next) {
+    try {
+      const user = await User.findByPk(req.user.userId, {
+        attributes: { exclude: ['password'] }
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.json({ user });
+    } catch (error) {
+      console.error('Me error:', error);
+      res.status(500).json({ error: 'Failed to fetch profile' });
     }
   }
 

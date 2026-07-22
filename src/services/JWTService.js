@@ -17,6 +17,19 @@ class JWTService {
     );
   }
 
+  /**
+   * Short-lived token issued right after registration, before the user has
+   * a full session. Only authorizes completing the KYC flow for that one
+   * userId — nothing else.
+   */
+  generateOnboardingToken(userId) {
+    return jwt.sign(
+      { userId, scope: 'onboarding' },
+      process.env.JWT_SECRET,
+      { expiresIn: '2h' }
+    );
+  }
+
   verifyAccessToken(token) {
     try {
       return jwt.verify(token, process.env.JWT_SECRET);

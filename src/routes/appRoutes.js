@@ -1,10 +1,13 @@
 const express = require('express');
 const { body } = require('express-validator');
-const authMiddleware = require('../middleware/authMiddleware');
+const appAuthMiddleware = require('../middleware/appAuthMiddleware');
 const handleValidationErrors = require('../middleware/validationMiddleware');
 const AppController = require('../controllers/AppController');
 
 const router = express.Router();
+
+// All ecosystem-app-to-GENESIS-ID calls require a valid X-API-Key
+router.use(appAuthMiddleware);
 
 router.post('/user-status', [
   body('userId').isUUID(),
@@ -17,7 +20,5 @@ router.post('/register-app', [
 ], handleValidationErrors, AppController.registerApp);
 
 router.post('/token-validate', AppController.tokenValidate);
-
-router.get('/users/:appName', authMiddleware, AppController.getAppUsers);
 
 module.exports = router;

@@ -33,7 +33,8 @@ module.exports = (sequelize) => {
       unique: true
     }
   }, {
-    timestamps: true
+    timestamps: true,
+    tableName: 'AppRegistrations'
   });
 
   return AppRegistration;

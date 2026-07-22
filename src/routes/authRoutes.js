@@ -32,4 +32,6 @@ router.post('/refresh', [
 
 router.post('/logout', authMiddleware, AuthController.logout);
 
+router.get('/me', authMiddleware, AuthController.me);
+
 module.exports = router;

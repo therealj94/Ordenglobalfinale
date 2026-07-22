@@ -83,6 +83,9 @@ LOG_LEVEL=debug
 # Crear tablas en base de datos
 npm run migrate
 
+# Crear el usuario admin (usa ADMIN_EMAIL / ADMIN_PASSWORD del .env)
+npm run seed
+
 # Iniciar backend
 npm run dev
 

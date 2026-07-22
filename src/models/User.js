@@ -32,6 +32,10 @@ module.exports = (sequelize) => {
       type: DataTypes.ENUM('pending', 'verified', 'rejected', 'expired'),
       defaultValue: 'pending'
     },
+    role: {
+      type: DataTypes.ENUM('user', 'admin'),
+      defaultValue: 'user'
+    },
     lastLogin: {
       type: DataTypes.DATE,
       allowNull: true
@@ -45,7 +49,8 @@ module.exports = (sequelize) => {
       allowNull: true
     }
   }, {
-    timestamps: true
+    timestamps: true,
+    tableName: 'Users'
   });
 
   return User;

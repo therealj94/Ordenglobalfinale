@@ -44,7 +44,8 @@ module.exports = (sequelize) => {
       allowNull: true
     }
   }, {
-    timestamps: true
+    timestamps: true,
+    tableName: 'AdminLogs'
   });
 
   return AdminLog;

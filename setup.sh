@@ -113,6 +113,12 @@ npm run migrate
 echo -e "${GREEN}✓ Database ready${NC}"
 echo ""
 
+# Create admin user
+echo -e "${BLUE}👤 Creating admin user...${NC}"
+npm run seed
+echo -e "${GREEN}✓ Admin user ready (see ADMIN_EMAIL/ADMIN_PASSWORD in .env)${NC}"
+echo ""
+
 # Frontend Setup
 echo -e "${BLUE}📦 Setting up Frontend...${NC}"
 cd apps/web

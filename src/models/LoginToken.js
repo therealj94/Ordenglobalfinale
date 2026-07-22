@@ -46,7 +46,8 @@ module.exports = (sequelize) => {
       allowNull: true
     }
   }, {
-    timestamps: true
+    timestamps: true,
+    tableName: 'LoginTokens'
   });
 
   return LoginToken;

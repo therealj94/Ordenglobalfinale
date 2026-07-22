@@ -48,6 +48,10 @@ export default function RegisterPage() {
         phone: formData.phone
       });
 
+      // Short-lived token authorizing this user to complete KYC before
+      // they have a full session (that starts once verification is approved).
+      localStorage.setItem('accessToken', result.onboardingToken);
+
       toast.success('Account created! Redirecting to verification...');
       router.push(`/verify?userId=${result.userId}`);
     } catch (err) {

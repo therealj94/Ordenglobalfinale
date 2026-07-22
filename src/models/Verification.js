@@ -29,8 +29,39 @@ module.exports = (sequelize) => {
       allowNull: true
     },
     documentType: {
+      type: DataTypes.ENUM('PASSPORT', 'ID_CARD', 'DRIVERS_LICENSE'),
+      allowNull: true
+    },
+    documentCountry: {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    documentNumber: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    // Document images (base64). ID_CARD/DRIVERS_LICENSE need front+back, PASSPORT only front.
+    documentFrontImage: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    documentBackImage: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    // Array of selfie images captured during the rotation liveness challenge
+    selfieImages: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: []
+    },
+    livenessResult: {
+      type: DataTypes.JSONB,
+      allowNull: true
+    },
+    reviewMode: {
+      type: DataTypes.ENUM('automatic', 'manual'),
+      defaultValue: 'manual'
     },
     verifiedAt: {
       type: DataTypes.DATE,
@@ -49,7 +80,8 @@ module.exports = (sequelize) => {
       allowNull: true
     }
   }, {
-    timestamps: true
+    timestamps: true,
+    tableName: 'Verifications'
   });
 
   return Verification;

@@ -100,30 +100,6 @@ class AppController {
     }
   }
 
-  async getAppUsers(req, res, next) {
-    try {
-      const { appName } = req.params;
-
-      const appRegistrations = await AppRegistration.findAll({
-        where: { appName },
-        include: [{
-          model: User,
-          attributes: ['id', 'email', 'fullName', 'status', 'createdAt']
-        }],
-        limit: 100,
-        offset: (req.query.page - 1) * 100 || 0
-      });
-
-      res.json({
-        appName,
-        users: appRegistrations,
-        count: appRegistrations.length
-      });
-    } catch (error) {
-      console.error('Get app users error:', error);
-      res.status(500).json({ error: 'Failed to get app users' });
-    }
-  }
 }
 
 module.exports = new AppController();

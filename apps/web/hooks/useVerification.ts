@@ -1,62 +1,39 @@
 import { useState, useCallback } from 'react';
-import { Verification, VerificationSession } from '@/types';
 import { apiClient } from '@/lib/apiClient';
 
+export type DocumentType = 'PASSPORT' | 'ID_CARD' | 'DRIVERS_LICENSE';
+
+export interface KYCSubmission {
+  userId: string;
+  documentType: DocumentType;
+  documentCountry?: string;
+  documentFrontImage: string;
+  documentBackImage?: string;
+  selfieImages: string[];
+  livenessResult?: Record<string, any>;
+}
+
+export interface KYCStatus {
+  verificationId: string;
+  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'abandoned';
+  reviewMode: 'automatic' | 'manual';
+  verifiedAt?: string;
+  rejectionReason?: string;
+}
+
 export const useVerification = () => {
-  const [verification, setVerification] = useState<Verification | null>(null);
-  const [session, setSession] = useState<VerificationSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<'idle' | 'initializing' | 'verifying' | 'completed' | 'failed'>('idle');
 
-  const initializeVerification = useCallback(async (userId: string) => {
+  const submitKYC = useCallback(async (data: KYCSubmission) => {
     try {
       setLoading(true);
       setError(null);
-      setProgress('initializing');
 
-      const response = await apiClient.post<{
-        veriffUrl: string;
-        sessionId: string;
-      }>('/auth/verify-init', { userId });
-
-      const { veriffUrl, sessionId } = response.data;
-      setProgress('verifying');
-
-      return { veriffUrl, sessionId };
-    } catch (err: any) {
-      const message = err.response?.data?.error || 'Failed to initialize verification';
-      setError(message);
-      setProgress('failed');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const checkVerificationStatus = useCallback(async (sessionId: string) => {
-    try {
-      const response = await apiClient.get<Verification>(
-        `/auth/verify-status/${sessionId}`
+      const response = await apiClient.post<{ verificationId: string; status: string }>(
+        '/kyc/submit',
+        data
       );
-      setVerification(response.data);
-      return response.data;
-    } catch (err: any) {
-      const message = err.response?.data?.error || 'Failed to check status';
-      setError(message);
-      throw err;
-    }
-  }, []);
-
-  const submitKYCData = useCallback(async (userId: string, kycData: any) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await apiClient.post('/kyc/submit', {
-        userId,
-        kycData
-      });
 
       return response.data;
     } catch (err: any) {
@@ -68,29 +45,21 @@ export const useVerification = () => {
     }
   }, []);
 
-  const retryVerification = useCallback(async (userId: string) => {
+  const getKYCStatus = useCallback(async (userId: string) => {
     try {
-      setLoading(true);
-      setError(null);
-      setProgress('idle');
-
-      return await initializeVerification(userId);
-    } catch (err) {
+      const response = await apiClient.get<KYCStatus>(`/kyc/status/${userId}`);
+      return response.data;
+    } catch (err: any) {
+      const message = err.response?.data?.error || 'Failed to get KYC status';
+      setError(message);
       throw err;
-    } finally {
-      setLoading(false);
     }
-  }, [initializeVerification]);
+  }, []);
 
   return {
-    verification,
-    session,
     loading,
     error,
-    progress,
-    initializeVerification,
-    checkVerificationStatus,
-    submitKYCData,
-    retryVerification
+    submitKYC,
+    getKYCStatus
   };
 };
