@@ -45,17 +45,31 @@ manual-review path already exists as the fallback.
 2. **PEP declared → always manual.** No quality score overrides this —
    enhanced due diligence requires a human, by design.
 3. Otherwise, run the quality gate:
-   - **Pass** → `status: 'approved'`, `reviewMode: 'automatic'`, GID assigned
-     immediately, user can log in right away.
    - **Fail, attempt < 3** → HTTP 400 with the specific failure reasons
      (e.g. "Selfie 2: image too dark"), user retakes photos immediately.
-     Tracked via `User.kycAttemptCount`.
-   - **Fail, attempt ≥ 3** → instead of blocking the user forever, it's
-     handed to the manual review queue (`ManualReviewCase`, reason:
-     "Automatic quality checks failed after 3 attempts") so a human looks
-     at *why* — could be a genuinely hard camera/lighting situation, not
-     necessarily fraud.
-4. Manual approval (by an admin) also assigns a GID if the user doesn't
+     Tracked via `User.kycAttemptCount`. (This is instant — no point making
+     someone wait a minute just to be told to retake a blurry photo.)
+   - **Pass, or fail with attempt ≥ 3, or PEP** → the submission is accepted
+     and held as `status: 'processing'` — not resolved instantly. See below.
+4. **Deferred decision** (`src/services/VerificationDecisionService.js`):
+   about **1 minute** after submission (`DECISION_DELAY_MS`), the real
+   outcome is applied:
+   - **Quality passed and not PEP** → `status: 'approved'`,
+     `reviewMode: 'automatic'`, GID assigned, `User.status` → `verified`,
+     approval email sent. User can log in right away.
+   - **PEP, or quality failed 3 times** → `status: 'pending'` and a
+     `ManualReviewCase` is created (reason recorded, e.g. "PEP declared" or
+     "Automatic quality checks failed after 3 attempts") — shows up in
+     `/admin/reviews`. This can take up to 24 hours; the user is emailed
+     once an admin approves or rejects it.
+   - A periodic sweep (every 30s) plus a lazy check on every
+     `GET /kyc/status/:userId` call guarantee the decision gets applied
+     even if the server restarts mid-wait — nothing is lost to a dropped
+     `setTimeout`.
+5. The frontend (`KYCFlow.tsx`) shows a "Verifying your identity..." screen
+   and polls `/kyc/status/:userId` every few seconds until it resolves,
+   so the user always sees an honest, non-instant verification experience.
+6. Manual approval (by an admin) also assigns a GID if the user doesn't
    have one yet — same code path either way (`GIDService.assignGIDIfMissing`).
 
 ## GENESIS ID (GID)
@@ -86,9 +100,12 @@ Example: `GID-85m856-hnd` — a user whose declared nationality is Honduras.
 - `livenessResult` — head-pose/capture metadata from the frontend
 - `sourceOfFunds`, `isPEP`, `pepDetails` — AML declaration for this submission
 - `reviewMode` — `'automatic'` (passed the quality gate) or `'manual'`
-- `rawData` — for non-auto-approved submissions, stores which quality
-  checks failed and on which attempt
-- `status`, `verifiedAt`, `rejectionReason`
+- `decisionAt` — when the deferred decision should be applied (~1 minute
+  after submission); read by `VerificationDecisionService`
+- `rawData` — stores the pending decision (`autoApprove`, reason) plus
+  which quality checks failed and on which attempt; cleared once approved
+- `status` — `'processing'` while waiting, then `'approved'` / `'pending'`
+  (manual) / `'rejected'`; `verifiedAt`, `rejectionReason`
 
 `User` (`src/models/User.js`) also carries:
 - Persistent KYC profile: `dateOfBirth`, `nationality`, `countryOfResidence`, `occupation`

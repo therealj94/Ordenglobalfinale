@@ -19,7 +19,13 @@ interface KYCFlowProps {
   onStatusChange?: (status: 'approved' | 'pending' | 'rejected', data: any) => void;
 }
 
-type Step = 'info' | 'aml' | 'facial' | 'document' | 'submitting' | 'review' | 'completed' | 'failed';
+type Step = 'info' | 'aml' | 'facial' | 'document' | 'submitting' | 'processing' | 'review' | 'completed' | 'failed';
+
+// How long to keep polling for a decision before giving up and sending the
+// user to the "under review" screen anyway (the backend keeps working on
+// it in the background regardless — this just bounds the wait on-screen).
+const POLL_INTERVAL_MS = 4000;
+const MAX_POLL_MS = 5 * 60 * 1000;
 
 export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowProps) {
   const router = useRouter();
@@ -32,7 +38,7 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
 
   const steps = ['Start', 'Compliance Info', 'Facial Verification', 'Document Scan', 'Review', 'Completed'];
   const currentStepIndex = ['info', 'aml', 'facial', 'document', 'submitting', 'completed'].indexOf(
-    step === 'review' || step === 'failed' ? 'submitting' : step
+    step === 'review' || step === 'failed' || step === 'processing' ? 'submitting' : step
   );
 
   const handleStartVerification = () => {
@@ -50,6 +56,41 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
     setStep('document');
   };
 
+  const pollUntilResolved = async (uid: string) => {
+    const start = Date.now();
+    while (Date.now() - start < MAX_POLL_MS) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      try {
+        const status = await getKYCStatus(uid);
+
+        if (status.status === 'approved') {
+          setGid((status as any).gid || null);
+          setStep('completed');
+          onSuccess?.(status);
+          onStatusChange?.('approved', status);
+          return;
+        }
+        if (status.status === 'rejected') {
+          setRejectionReason(status.rejectionReason || null);
+          setStep('failed');
+          onStatusChange?.('rejected', status);
+          return;
+        }
+        if (status.status === 'pending') {
+          setStep('review');
+          onStatusChange?.('pending', status);
+          return;
+        }
+        // still 'processing' — keep polling
+      } catch {
+        // transient error while polling — keep trying
+      }
+    }
+    // Gave up waiting on-screen; the backend keeps working on it and will
+    // email the user once it resolves either way.
+    setStep('review');
+  };
+
   const handleDocumentComplete = async (result: DocumentCaptureResult) => {
     if (!amlInfo) {
       toast.error('Missing compliance information — please restart');
@@ -59,7 +100,7 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
 
     setStep('submitting');
     try {
-      const submitResult: any = await submitKYC({
+      await submitKYC({
         userId,
         documentType: result.documentType,
         documentFrontImage: result.frontImage,
@@ -69,31 +110,8 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
         amlInfo
       });
 
-      if (submitResult?.status === 'approved') {
-        setGid(submitResult.gid || null);
-        setStep('completed');
-        onSuccess?.(submitResult);
-        onStatusChange?.('approved', submitResult);
-        return;
-      }
-
-      toast.success('Submitted! Your verification is being reviewed.');
-
-      // Poll briefly in case a fast automatic decision comes back
-      const status = await getKYCStatus(userId);
-      if (status.status === 'approved') {
-        setGid((status as any).gid || null);
-        setStep('completed');
-        onSuccess?.(status);
-        onStatusChange?.('approved', status);
-      } else if (status.status === 'rejected') {
-        setRejectionReason(status.rejectionReason || null);
-        setStep('failed');
-        onStatusChange?.('rejected', status);
-      } else {
-        setStep('review');
-        onStatusChange?.('pending', status);
-      }
+      setStep('processing');
+      await pollUntilResolved(userId);
     } catch (error: any) {
       const details = error?.response?.data?.details;
       const attemptsRemaining = error?.response?.data?.attemptsRemaining;
@@ -264,7 +282,22 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
           {step === 'submitting' && (
             <div className="p-16 text-center">
               <FiLoader className="animate-spin mx-auto mb-4 text-blue-600" size={48} />
-              <p className="text-gray-600 text-lg">Uploading and processing your verification...</p>
+              <p className="text-gray-600 text-lg">Uploading your verification...</p>
+            </div>
+          )}
+
+          {step === 'processing' && (
+            <div className="p-8 md:p-16 text-center">
+              <FiLoader className="animate-spin mx-auto mb-6 text-blue-600" size={56} />
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">Verifying your identity...</h2>
+              <p className="text-gray-600 text-lg mb-6 max-w-md mx-auto">
+                This first automatic check usually takes just a few minutes.
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-md mx-auto">
+                <p className="text-gray-700 text-sm">
+                  If we need to review anything further, it can take up to 24 hours — we'll email you either way, so you don't need to keep this page open.
+                </p>
+              </div>
             </div>
           )}
 
@@ -278,7 +311,7 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
 
               <h2 className="text-3xl font-bold text-gray-900 mb-3">Under Review</h2>
               <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
-                Your verification is being manually reviewed by our team. This usually takes 24-48 hours.
+                Your verification needs a closer look from our team. This can take up to 24 hours.
               </p>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8 max-w-md mx-auto">

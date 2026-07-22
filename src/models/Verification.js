@@ -21,7 +21,7 @@ module.exports = (sequelize) => {
       unique: true
     },
     status: {
-      type: DataTypes.ENUM('pending', 'approved', 'rejected', 'expired', 'abandoned'),
+      type: DataTypes.ENUM('processing', 'pending', 'approved', 'rejected', 'expired', 'abandoned'),
       defaultValue: 'pending'
     },
     documentType: {
@@ -75,6 +75,13 @@ module.exports = (sequelize) => {
       defaultValue: 'manual'
     },
     verifiedAt: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    // When the deferred automatic decision (see VerificationDecisionService)
+    // should be applied — gives the user a realistic "verifying..." wait
+    // instead of an instant response.
+    decisionAt: {
       type: DataTypes.DATE,
       allowNull: true
     },

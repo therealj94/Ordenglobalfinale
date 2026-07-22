@@ -135,16 +135,6 @@ Authorization: Bearer <onboardingToken or accessToken>
 
 `documentBackImage` is required for `ID_CARD` and `DRIVERS_LICENSE`, not for `PASSPORT`. At least 3 `selfieImages` are required. `amlInfo` is required; `pepDetails` is required when `isPEP` is `true`. `nationality`/`countryOfResidence` are ISO 3166-1 alpha-2 codes.
 
-**Response — auto-approved** (passed the quality gate, not PEP):
-```json
-{
-  "message": "Verification approved automatically",
-  "verificationId": "verification-uuid",
-  "status": "approved",
-  "gid": "GID-85m856-hnd"
-}
-```
-
 **Response — quality check failed, retry available** (`400`):
 ```json
 {
@@ -155,16 +145,23 @@ Authorization: Bearer <onboardingToken or accessToken>
 }
 ```
 
-**Response — pending manual review** (PEP declared, or quality failed 3 times):
+**Response — accepted, decision pending** (quality passed, or 3rd attempt / PEP forced into manual review):
 ```json
 {
-  "message": "KYC submitted successfully, pending manual review",
+  "message": "We are verifying your identity. This usually takes a few minutes.",
   "verificationId": "verification-uuid",
-  "status": "pending"
+  "status": "processing"
 }
 ```
 
-This creates a `ManualReviewCase` that shows up in the admin panel at `/admin/reviews`. See `VERIFICATION_ENGINE.md` for exactly what the automatic quality gate does and does not check.
+The submission is never resolved instantly. It's held as `status: 'processing'` for about a minute
+(`VerificationDecisionService`, `DECISION_DELAY_MS`) so the wait feels real, then resolves to either:
+- **`approved`** — GID assigned, `User.status` set to `verified`, approval email sent.
+- **`pending`** — a `ManualReviewCase` is created (shows up in `/admin/reviews`); can take up to 24
+  hours; the user gets an email once an admin approves or rejects it.
+
+Poll `GET /kyc/status/:userId` to see when it resolves. See `VERIFICATION_ENGINE.md` for exactly what
+the automatic quality gate does and does not check.
 
 ### 2. Check KYC Status
 ```
@@ -183,6 +180,9 @@ Authorization: Bearer <onboardingToken or accessToken>
   "gid": "GID-85m856-hnd"
 }
 ```
+
+`status` can also be `"processing"` — the decision hasn't been applied yet (still inside the ~1 minute
+wait). Keep polling this endpoint until it changes to `approved`, `pending`, or `rejected`.
 
 ---
 

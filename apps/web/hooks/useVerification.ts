@@ -26,7 +26,7 @@ export interface KYCSubmission {
 
 export interface KYCStatus {
   verificationId: string;
-  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'abandoned';
+  status: 'processing' | 'pending' | 'approved' | 'rejected' | 'expired' | 'abandoned';
   reviewMode: 'automatic' | 'manual';
   verifiedAt?: string;
   rejectionReason?: string;

@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { sequelize } = require('./models');
+const { startSweeper } = require('./services/VerificationDecisionService');
 
 const authRoutes = require('./routes/authRoutes');
 const appRoutes = require('./routes/appRoutes');
@@ -61,6 +62,8 @@ async function startServer() {
 
     await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
     console.log('Database models synchronized');
+
+    startSweeper();
 
     app.listen(PORT, () => {
       console.log(`GENESIS ID server running on port ${PORT}`);

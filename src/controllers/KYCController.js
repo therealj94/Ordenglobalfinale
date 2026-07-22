@@ -1,8 +1,11 @@
 const { v4: uuidv4 } = require('uuid');
-const { User, Verification, ManualReviewCase } = require('../models');
+const { User, Verification } = require('../models');
 const { checkSubmissionQuality } = require('../services/ImageQualityService');
-const { assignGIDIfMissing } = require('../services/GIDService');
-const EmailService = require('../services/EmailService');
+const {
+  DECISION_DELAY_MS,
+  scheduleDecision,
+  applyDecision
+} = require('../services/VerificationDecisionService');
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024; // ~8MB base64 payload guard per image
 const MAX_ATTEMPTS_BEFORE_FORCED_MANUAL = 3;
@@ -128,11 +131,17 @@ class KYCController {
       // PEP cases always require a human's enhanced due diligence review —
       // never auto-approved regardless of image quality.
       const autoApprove = quality.pass && !isPEP;
+      const decisionAt = new Date(Date.now() + DECISION_DELAY_MS);
 
+      // The verification doesn't resolve instantly — it sits as
+      // "processing" for a bit (VerificationDecisionService applies the
+      // real outcome after DECISION_DELAY_MS) so the user sees a realistic
+      // "we're verifying you" wait instead of an instant answer, and so a
+      // manual-review case can honestly say "this may take up to 24 hours".
       const verification = await Verification.create({
         userId: user.id,
         sessionId: uuidv4(),
-        status: autoApprove ? 'approved' : 'pending',
+        status: 'processing',
         documentType,
         documentCountry: documentCountry || null,
         documentFrontImage,
@@ -143,40 +152,28 @@ class KYCController {
         isPEP,
         pepDetails: isPEP ? pepDetails : null,
         reviewMode: autoApprove ? 'automatic' : 'manual',
-        verifiedAt: autoApprove ? new Date() : null,
-        rawData: autoApprove ? null : { qualityFailures: quality.failures, attemptNumber },
+        decisionAt,
+        rawData: {
+          pendingDecision: {
+            autoApprove,
+            reason: isPEP
+              ? 'PEP declared — requires enhanced due diligence'
+              : `Automatic quality checks failed after ${attemptNumber} attempts — needs manual review`
+          },
+          qualityFailures: quality.failures,
+          attemptNumber
+        },
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
       });
 
-      if (autoApprove) {
-        const gid = await assignGIDIfMissing(user, User);
-        await user.update({ status: 'verified' });
-        EmailService.sendVerificationApproved(user).catch(() => {});
-
-        return res.status(201).json({
-          message: 'Verification approved automatically',
-          verificationId: verification.id,
-          status: 'approved',
-          gid
-        });
-      }
-
-      // Failed quality after 3 attempts (or PEP always gets a human look,
-      // handled separately) — hand off to manual review instead of leaving
-      // the user stuck.
-      await ManualReviewCase.create({
-        verificationId: verification.id,
-        userId: user.id,
-        reason: isPEP
-          ? 'PEP declared — requires enhanced due diligence'
-          : `Automatic quality checks failed after ${attemptNumber} attempts — needs manual review`,
-        status: 'pending'
-      });
+      scheduleDecision(verification.id);
 
       res.status(201).json({
-        message: 'KYC submitted successfully, pending manual review',
+        message: autoApprove
+          ? 'We are verifying your identity. This usually takes a few minutes.'
+          : 'We are verifying your identity. If additional review is needed, it can take up to 24 hours. We will email you either way.',
         verificationId: verification.id,
-        status: 'pending'
+        status: 'processing'
       });
     } catch (error) {
       console.error('Submit KYC error:', error);
@@ -196,6 +193,18 @@ class KYCController {
 
       if (!verification) {
         return res.status(404).json({ status: 'not_found' });
+      }
+
+      // If the 1-minute wait already elapsed but the in-process timer
+      // hasn't fired yet (e.g. the server restarted), resolve it now
+      // instead of making the user wait for the next sweep.
+      if (
+        verification.status === 'processing' &&
+        verification.decisionAt &&
+        verification.decisionAt <= new Date()
+      ) {
+        await applyDecision(verification.id);
+        await verification.reload();
       }
 
       const user = await User.findByPk(userId, { attributes: ['gid'] });
