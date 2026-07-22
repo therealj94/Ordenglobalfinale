@@ -17,19 +17,34 @@ class AuthController {
       const { email, password, fullName, phone } = req.body;
 
       const existingUser = await User.findOne({ where: { email: email.toLowerCase() } });
-      if (existingUser) {
+
+      if (existingUser && existingUser.isActive) {
         return res.status(409).json({ error: 'Email already registered' });
       }
 
       const hashedPassword = await PasswordService.hashPassword(password);
 
-      const user = await User.create({
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        fullName: fullName ? toTitleCase(fullName) : fullName,
-        phone,
-        status: 'pending'
-      });
+      let user;
+      if (existingUser) {
+        // The email belongs to a previously deactivated account. The unique
+        // constraint on email means we can't create a second row for it —
+        // reactivate this one instead of blocking the new registration.
+        await existingUser.update({
+          password: hashedPassword,
+          fullName: fullName ? toTitleCase(fullName) : fullName,
+          phone,
+          isActive: true
+        });
+        user = existingUser;
+      } else {
+        user = await User.create({
+          email: email.toLowerCase(),
+          password: hashedPassword,
+          fullName: fullName ? toTitleCase(fullName) : fullName,
+          phone,
+          status: 'pending'
+        });
+      }
 
       const onboardingToken = JWTService.generateOnboardingToken(user.id);
 
