@@ -230,6 +230,36 @@ Once GENESIS ID is running, connect Veta Wallet, My Token Pay, or any other app:
 
 Full guide: [packages/kyc-sdk/README.md](./packages/kyc-sdk/README.md)
 
+### Veta Wallet — the first connected app
+
+Veta Wallet is a real (if minimal) example of an ecosystem app: an internal-balance
+wallet with no identity system of its own — every login is an SSO call to GENESIS
+ID. See `services/veta-wallet-api/README.md` and `apps/veta-wallet/README.md` for
+full setup, but in short:
+
+```bash
+# 1. Create the DB
+createdb veta_wallet_db
+
+# 2. Backend
+cd services/veta-wallet-api
+npm install
+cp .env.example .env   # set GENESIS_API_KEY from Admin -> Settings -> Connect New App (appName: veta-wallet)
+npm run migrate
+npm run dev             # http://localhost:4000
+
+# 3. Frontend
+cd ../../apps/veta-wallet
+npm install
+cp .env.local.example .env.local
+npm run dev              # http://localhost:3002
+```
+
+Log in with any **verified** GENESIS ID account's email/password — Veta Wallet has
+no password of its own. First login grants a 1,000 VC welcome bonus; from there you
+can send credits to any other GID that has also logged into Veta Wallet at least
+once, and see transaction history.
+
 ## 📈 Next Steps
 
 1. **Deploy Backend** (AWS RDS + ECS) — see DEPLOYMENT.md

@@ -200,7 +200,10 @@ Ordenglobalfinale/
 │   ├── migrations/
 │   └── seeders/                 # creates the first admin user
 ├── apps/
-│   └── web/                     # Next.js frontend + admin dashboard
+│   ├── web/                     # GENESIS ID Next.js frontend + admin dashboard
+│   └── veta-wallet/             # Veta Wallet frontend (first connected ecosystem app)
+├── services/
+│   └── veta-wallet-api/         # Veta Wallet backend — own DB, SSO via GENESIS ID
 ├── packages/
 │   └── kyc-sdk/                 # Widget + integration guide for Veta Wallet, etc.
 ├── package.json
