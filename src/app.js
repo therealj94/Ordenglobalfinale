@@ -31,8 +31,16 @@ app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 // CORS
+// .trim() + filter(Boolean) guard against a stray trailing space/newline or
+// double comma in the CORS_ORIGIN env var silently breaking the exact-match
+// check in the `cors` package (which fails closed — no error, just a
+// preflight response missing Access-Control-Allow-Origin, which the browser
+// then treats as "blocked" without much of a diagnosable client-side error).
 const corsOptions = {
-  origin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(','),
+  origin: (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
