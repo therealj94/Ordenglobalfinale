@@ -28,13 +28,36 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
 }
 
+// A woven guilloché-style engraving — overlapping wave paths tiled both
+// ways, the same kind of engine-turned security print real passport paper
+// uses, instead of a flat straight-line grid. Sepia ink tone on the cream
+// paper background.
+const GUILLOCHE_TILE = `data:image/svg+xml,${encodeURIComponent(`
+  <svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>
+    <g fill='none' stroke='#8a6a3a' stroke-width='0.6'>
+      <path d='M-10,10 Q20,-10 50,10 T110,10 T170,10'/>
+      <path d='M-10,30 Q20,10 50,30 T110,30 T170,30'/>
+      <path d='M-10,50 Q20,30 50,50 T110,50 T170,50'/>
+      <path d='M-10,70 Q20,50 50,70 T110,70 T170,70'/>
+      <path d='M-10,90 Q20,70 50,90 T110,90 T170,90'/>
+      <path d='M-10,110 Q20,90 50,110 T110,110 T170,110'/>
+      <path d='M10,-10 Q-10,20 10,50 T10,110 T10,170'/>
+      <path d='M30,-10 Q10,20 30,50 T30,110 T30,170'/>
+      <path d='M50,-10 Q30,20 50,50 T50,110 T50,170'/>
+      <path d='M70,-10 Q50,20 70,50 T70,110 T70,170'/>
+      <path d='M90,-10 Q70,20 90,50 T90,110 T90,170'/>
+      <path d='M110,-10 Q90,20 110,50 T110,110 T110,170'/>
+    </g>
+  </svg>
+`)}`;
+
 // Repeating "GENESIS ID" micro-print, tiled diagonally — the same kind of
 // security-paper watermark real passports/ID documents use, built as an
 // inline SVG data URI so no image asset is needed.
 const WATERMARK_TILE = `data:image/svg+xml,${encodeURIComponent(`
-  <svg xmlns='http://www.w3.org/2000/svg' width='200' height='110'>
-    <text x='0' y='55' font-family='Arial, sans-serif' font-size='15' font-weight='700'
-      letter-spacing='1' fill='#1e3a8a' transform='rotate(-28 100 55)'>GENESIS ID</text>
+  <svg xmlns='http://www.w3.org/2000/svg' width='210' height='120'>
+    <text x='0' y='60' font-family='Georgia, serif' font-size='15' font-weight='700'
+      letter-spacing='2' fill='#7a5a2e' transform='rotate(-28 105 60)'>GENESIS ID</text>
   </svg>
 `)}`;
 
@@ -83,7 +106,7 @@ export default function GenesisIDCard({
   useEffect(() => {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
     const verifyUrl = `${appUrl}/verify-gid/${encodeURIComponent(gid)}`;
-    QRCode.toDataURL(verifyUrl, { margin: 1, width: 220, color: { dark: '#1e293b', light: '#ffffff' } })
+    QRCode.toDataURL(verifyUrl, { margin: 1, width: 220, color: { dark: '#2b2013', light: '#00000000' } })
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(null));
   }, [gid]);
@@ -110,107 +133,112 @@ export default function GenesisIDCard({
     <div className="w-full max-w-sm mx-auto">
       <div
         ref={cardRef}
-        className="rounded-2xl overflow-hidden shadow-2xl border border-indigo-200 bg-white relative"
+        className="rounded-lg overflow-hidden shadow-2xl border border-[#c9b98a] bg-[#f6efdb] relative"
       >
-        {/* Header */}
-        <div className="relative bg-gradient-to-r from-indigo-900 via-blue-900 to-indigo-950 px-5 py-4">
+        {/* Header — the "cover" band */}
+        <div className="relative bg-gradient-to-r from-[#1a2a4a] via-[#152238] to-[#0f1a2e] px-5 py-4">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-white bg-opacity-10 flex items-center justify-center border border-indigo-400 shrink-0">
+            <div className="w-9 h-9 rounded-full bg-white bg-opacity-10 flex items-center justify-center border border-amber-400/50 shrink-0">
               <FiShield className="text-amber-400" size={18} />
             </div>
             <div className="min-w-0">
-              <p className="text-white font-extrabold text-lg leading-tight tracking-wide">GENESIS ID</p>
-              <p className="text-indigo-300 text-[8px] uppercase tracking-[0.2em]">by Orden Global Ecosystem</p>
+              <p className="text-white font-serif font-bold text-lg leading-tight tracking-wide">GENESIS ID</p>
+              <p className="text-amber-200/70 text-[8px] uppercase tracking-[0.2em]">by Orden Global Ecosystem</p>
             </div>
           </div>
         </div>
-        <div className="h-1 bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500" />
+        <div className="h-[3px] bg-gradient-to-r from-amber-600 via-amber-300 to-amber-600" />
 
-        {/* Body — stacked vertically, passport-page style */}
-        <div className="relative bg-gradient-to-b from-slate-50 to-white px-6 pt-6 pb-4 text-center">
-          {/* Security-paper watermark layers, scoped to the light "paper" area
-              so they don't wash out over the dark header/footer bars */}
+        {/* Body — the "paper" page */}
+        <div className="relative px-6 pt-6 pb-4 text-center">
+          {/* Warm paper gradient wash */}
           <div
-            className="absolute inset-0 pointer-events-none opacity-[0.07]"
-            style={{
-              backgroundImage:
-                'repeating-linear-gradient(115deg, #1e3a8a 0px, #1e3a8a 1px, transparent 1px, transparent 9px), repeating-linear-gradient(25deg, #1e3a8a 0px, #1e3a8a 1px, transparent 1px, transparent 9px)'
-            }}
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse at 50% 0%, #fffbf0 0%, #f3ead0 60%, #ecdfb8 100%)' }}
           />
+          {/* Guilloché engraving */}
           <div
-            className="absolute inset-0 pointer-events-none opacity-[0.12]"
+            className="absolute inset-0 pointer-events-none opacity-[0.22]"
+            style={{ backgroundImage: `url("${GUILLOCHE_TILE}")`, backgroundRepeat: 'repeat' }}
+          />
+          {/* "GENESIS ID" micro-print watermark */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.16]"
             style={{ backgroundImage: `url("${WATERMARK_TILE}")`, backgroundRepeat: 'repeat' }}
           />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.08]">
-            <FiShield size={280} className="text-indigo-900" />
+          {/* Large faded shield emblem */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.09]">
+            <FiShield size={280} className="text-[#4a3618]" />
           </div>
+          {/* Engraved double-rule frame */}
+          <div className="absolute inset-2 border-double border-4 border-amber-800/25 pointer-events-none rounded-sm" />
 
           <div className="relative z-10">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-4">
-            Global Digital Identity
-          </p>
+            <p className="font-serif text-[11px] uppercase tracking-[0.25em] text-amber-900/70 font-semibold mb-4">
+              Global Digital Identity
+            </p>
 
-          {/* Photo */}
-          <div className="mx-auto w-32 h-40 rounded-lg overflow-hidden bg-gray-200 border-2 border-white shadow-md ring-1 ring-indigo-100 mb-4">
-            {idCardPhoto ? (
-              <img src={idCardPhoto} alt={fullName} className="w-full h-full object-cover" crossOrigin="anonymous" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs text-center px-2">
-                No photo
+            {/* Photo */}
+            <div className="mx-auto w-32 h-40 overflow-hidden bg-gray-200 border-2 border-[#4a3618]/40 shadow-md mb-4">
+              {idCardPhoto ? (
+                <img src={idCardPhoto} alt={fullName} className="w-full h-full object-cover grayscale-[0.15] sepia-[0.15]" crossOrigin="anonymous" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs text-center px-2">
+                  No photo
+                </div>
+              )}
+            </div>
+
+            {/* Fields — stacked, left-aligned inside a centered block */}
+            <div className="inline-block text-left w-full max-w-[240px]">
+              <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Global Identity Number</p>
+              <p className="font-mono font-bold text-lg text-[#2b2013] tracking-wide mb-2 truncate">{gid}</p>
+
+              <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Full Name</p>
+              <p className="font-serif font-semibold text-[#2b2013] text-lg mb-2 truncate">{fullName}</p>
+
+              <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Nationality</p>
+              <p className="text-[#3a2c18] text-sm mb-2">{countryName(nationality)}</p>
+
+              {showFullDetails && (
+                <>
+                  <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Date of Birth</p>
+                  <p className="text-[#3a2c18] text-sm mb-2">{formatDate(dateOfBirth)}</p>
+                </>
+              )}
+
+              <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Status</p>
+              <p className="text-emerald-800 font-bold text-sm flex items-center gap-1">
+                VERIFIED MEMBER <span className="text-amber-600">✓</span>
+              </p>
+            </div>
+
+            {/* QR */}
+            {qrDataUrl && (
+              <div className="flex flex-col items-center mt-4">
+                <img src={qrDataUrl} alt="Scan to verify" className="w-28 h-28" />
+                <p className="text-[8px] uppercase tracking-wider text-amber-900/50 mt-1">Scan to verify</p>
               </div>
             )}
-          </div>
-
-          {/* Fields — stacked, left-aligned inside a centered block */}
-          <div className="inline-block text-left w-full max-w-[240px]">
-            <p className="text-[10px] uppercase tracking-widest text-indigo-500 font-semibold">Global Identity Number</p>
-            <p className="font-mono font-bold text-lg text-slate-900 tracking-wide mb-2 truncate">{gid}</p>
-
-            <p className="text-[10px] uppercase tracking-widest text-indigo-500 font-semibold">Full Name</p>
-            <p className="font-semibold text-slate-900 mb-2 truncate">{fullName}</p>
-
-            <p className="text-[10px] uppercase tracking-widest text-indigo-500 font-semibold">Nationality</p>
-            <p className="text-slate-800 text-sm mb-2">{countryName(nationality)}</p>
 
             {showFullDetails && (
-              <>
-                <p className="text-[10px] uppercase tracking-widest text-indigo-500 font-semibold">Date of Birth</p>
-                <p className="text-slate-800 text-sm mb-2">{formatDate(dateOfBirth)}</p>
-              </>
+              <div className="flex justify-between mt-5 pt-4 border-t border-amber-800/25 text-xs max-w-[240px] mx-auto">
+                <div className="text-left">
+                  <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Issued</p>
+                  <p className="text-[#3a2c18]">{formatDate(issuedAt)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Valid Until</p>
+                  <p className="text-[#3a2c18]">{formatDate(expiresAt)}</p>
+                </div>
+              </div>
             )}
-
-            <p className="text-[10px] uppercase tracking-widest text-indigo-500 font-semibold">Status</p>
-            <p className="text-green-700 font-bold text-sm flex items-center gap-1">
-              VERIFIED MEMBER <span className="text-amber-500">✓</span>
-            </p>
-          </div>
-
-          {/* QR */}
-          {qrDataUrl && (
-            <div className="flex flex-col items-center mt-4">
-              <img src={qrDataUrl} alt="Scan to verify" className="w-28 h-28" />
-              <p className="text-[8px] uppercase tracking-wider text-gray-400 mt-1">Scan to verify</p>
-            </div>
-          )}
-
-          {showFullDetails && (
-            <div className="flex justify-between mt-5 pt-4 border-t border-indigo-100 text-xs max-w-[240px] mx-auto">
-              <div className="text-left">
-                <p className="text-[10px] uppercase tracking-widest text-indigo-500 font-semibold">Issued</p>
-                <p className="text-slate-700">{formatDate(issuedAt)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] uppercase tracking-widest text-indigo-500 font-semibold">Valid Until</p>
-                <p className="text-slate-700">{formatDate(expiresAt)}</p>
-              </div>
-            </div>
-          )}
           </div>
         </div>
 
         {/* Passport-style machine-readable zone (decorative) */}
-        <div className="relative bg-slate-900 px-5 py-3">
-          <p className="font-mono text-[10px] text-green-400 tracking-[0.1em] leading-relaxed whitespace-pre text-center">
+        <div className="relative bg-[#0f1a2e] px-5 py-3">
+          <p className="font-mono text-[10px] text-emerald-400/90 tracking-[0.1em] leading-relaxed whitespace-pre text-center">
             {mrzLine1}
             {'\n'}
             {mrzLine2}
@@ -218,8 +246,8 @@ export default function GenesisIDCard({
         </div>
 
         {/* Footer */}
-        <div className="relative bg-gradient-to-r from-indigo-900 via-blue-900 to-indigo-950 px-5 py-2 flex items-center justify-center">
-          <p className="text-indigo-300 text-[8px] uppercase tracking-[0.2em]">Genesis ID · Orden Global Ecosystem</p>
+        <div className="relative bg-gradient-to-r from-[#1a2a4a] via-[#152238] to-[#0f1a2e] px-5 py-2 flex items-center justify-center">
+          <p className="text-amber-200/70 text-[8px] uppercase tracking-[0.2em]">Genesis ID · Orden Global Ecosystem</p>
         </div>
       </div>
 
