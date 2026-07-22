@@ -8,6 +8,7 @@
     "dev": "nodemon src/app.js",
     "migrate": "sequelize-cli db:migrate",
     "migrate:undo": "sequelize-cli db:migrate:undo:all",
+    "fix-legacy-migrations": "node scripts/markMigrationsApplied.js",
     "seed": "sequelize-cli db:seed:all",
     "test": "jest --coverage"
   },
