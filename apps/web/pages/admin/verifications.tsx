@@ -4,7 +4,7 @@ import { useRequireAdmin } from '@/hooks/useRequireAdmin';
 import { apiClient } from '@/lib/apiClient';
 import DocumentViewer from '@/components/DocumentViewer';
 import toast from 'react-hot-toast';
-import { FiLoader, FiEye, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiLoader, FiEye, FiChevronLeft, FiChevronRight, FiAlertTriangle } from 'react-icons/fi';
 
 const STATUS_STYLES: Record<string, string> = {
   approved: 'bg-green-100 text-green-700',
@@ -21,6 +21,7 @@ interface VerificationRow {
   reviewMode: string;
   createdAt: string;
   verifiedAt?: string;
+  isPEP?: boolean;
   User: { email: string; fullName?: string };
 }
 
@@ -118,7 +119,15 @@ export default function AdminVerificationsPage() {
                   {verifications.map((v) => (
                     <tr key={v.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <p className="font-medium text-gray-900">{v.User?.fullName || '—'}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900">{v.User?.fullName || '—'}</p>
+                          {v.isPEP && (
+                            <span className="flex items-center text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                              <FiAlertTriangle size={11} className="mr-1" />
+                              PEP
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-500">{v.User?.email}</p>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{v.documentType || '—'}</td>

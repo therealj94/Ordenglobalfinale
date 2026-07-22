@@ -11,7 +11,8 @@ import {
   FiUser,
   FiFileText,
   FiLoader,
-  FiImage
+  FiImage,
+  FiAlertTriangle
 } from 'react-icons/fi';
 
 interface ReviewCase {
@@ -25,6 +26,10 @@ interface ReviewCase {
     fullName?: string;
     phone?: string;
     createdAt: string;
+    dateOfBirth?: string;
+    nationality?: string;
+    countryOfResidence?: string;
+    occupation?: string;
   };
   verification: {
     id: string;
@@ -33,9 +38,28 @@ interface ReviewCase {
     documentFrontImage?: string;
     documentBackImage?: string;
     selfieImages?: string[];
+    sourceOfFunds?: string;
+    isPEP?: boolean;
+    pepDetails?: string;
     rawData?: any;
   };
 }
+
+function calculateAge(dateOfBirth?: string): number | null {
+  if (!dateOfBirth) return null;
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return null;
+  return Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+}
+
+const SOURCE_OF_FUNDS_LABELS: Record<string, string> = {
+  salary: 'Salary / employment income',
+  savings: 'Personal savings',
+  business_income: 'Business income',
+  investments: 'Investments',
+  inheritance: 'Inheritance',
+  other: 'Other'
+};
 
 export default function AdminReviewsPage() {
   const { checking } = useRequireAdmin();
@@ -142,9 +166,17 @@ export default function AdminReviewsPage() {
                       </div>
                       <p className="text-xs text-gray-500">{caseItem.user.email}</p>
                       <p className="text-xs text-gray-500 mt-1">{caseItem.verification.documentType}</p>
-                      <div className="mt-2 flex items-center text-xs text-orange-600">
-                        <FiClock size={12} className="mr-1" />
-                        Pending
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="flex items-center text-xs text-orange-600">
+                          <FiClock size={12} className="mr-1" />
+                          Pending
+                        </div>
+                        {caseItem.verification.isPEP && (
+                          <div className="flex items-center text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                            <FiAlertTriangle size={11} className="mr-1" />
+                            PEP
+                          </div>
+                        )}
                       </div>
                     </button>
                   ))}
@@ -182,6 +214,46 @@ export default function AdminReviewsPage() {
                           <span className="font-medium">{selectedCase.reason}</span>
                         </p>
                       </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-3">AML / Compliance Declaration</h3>
+                      <div className="bg-gray-50 rounded p-4 space-y-2 text-sm">
+                        <p>
+                          <span className="text-gray-600">Age:</span>{' '}
+                          <span className="font-medium">
+                            {calculateAge(selectedCase.user.dateOfBirth) ?? 'N/A'}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="text-gray-600">Nationality:</span>{' '}
+                          <span className="font-medium">{selectedCase.user.nationality || 'N/A'}</span>
+                        </p>
+                        <p>
+                          <span className="text-gray-600">Country of Residence:</span>{' '}
+                          <span className="font-medium">{selectedCase.user.countryOfResidence || 'N/A'}</span>
+                        </p>
+                        <p>
+                          <span className="text-gray-600">Occupation:</span>{' '}
+                          <span className="font-medium">{selectedCase.user.occupation || 'N/A'}</span>
+                        </p>
+                        <p>
+                          <span className="text-gray-600">Source of Funds:</span>{' '}
+                          <span className="font-medium">
+                            {SOURCE_OF_FUNDS_LABELS[selectedCase.verification.sourceOfFunds || ''] || 'N/A'}
+                          </span>
+                        </p>
+                      </div>
+
+                      {selectedCase.verification.isPEP && (
+                        <div className="mt-3 bg-red-50 border-2 border-red-300 rounded-lg p-4">
+                          <div className="flex items-center font-bold text-red-700 mb-2">
+                            <FiAlertTriangle className="mr-2" />
+                            Politically Exposed Person — Enhanced Due Diligence Required
+                          </div>
+                          <p className="text-sm text-red-800">{selectedCase.verification.pepDetails}</p>
+                        </div>
+                      )}
                     </div>
 
                     <div>

@@ -28,6 +28,22 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true
     },
+    dateOfBirth: {
+      type: DataTypes.DATEONLY,
+      allowNull: true
+    },
+    nationality: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    countryOfResidence: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    occupation: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     status: {
       type: DataTypes.ENUM('pending', 'verified', 'rejected', 'expired'),
       defaultValue: 'pending'

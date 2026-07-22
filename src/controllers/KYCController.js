@@ -3,6 +3,15 @@ const { User, Verification, ManualReviewCase } = require('../models');
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024; // ~8MB base64 payload guard per image
 
+const VALID_SOURCE_OF_FUNDS = [
+  'salary',
+  'savings',
+  'business_income',
+  'investments',
+  'inheritance',
+  'other'
+];
+
 function isValidImage(image) {
   return typeof image === 'string' && image.startsWith('data:image/') && image.length < MAX_IMAGE_SIZE;
 }
@@ -17,7 +26,8 @@ class KYCController {
         documentFrontImage,
         documentBackImage,
         selfieImages,
-        livenessResult
+        livenessResult,
+        amlInfo
       } = req.body;
 
       if (!userId || !documentType) {
@@ -52,6 +62,44 @@ class KYCController {
         }
       }
 
+      // AML / KYC compliance declaration — required for any app that moves money
+      if (!amlInfo || typeof amlInfo !== 'object') {
+        return res.status(400).json({ error: 'amlInfo is required' });
+      }
+
+      const { dateOfBirth, nationality, countryOfResidence, occupation, sourceOfFunds, isPEP, pepDetails } = amlInfo;
+
+      if (!dateOfBirth || !nationality || !countryOfResidence || !occupation) {
+        return res.status(400).json({
+          error: 'dateOfBirth, nationality, countryOfResidence and occupation are required'
+        });
+      }
+
+      if (!VALID_SOURCE_OF_FUNDS.includes(sourceOfFunds)) {
+        return res.status(400).json({ error: 'Invalid sourceOfFunds' });
+      }
+
+      if (typeof isPEP !== 'boolean') {
+        return res.status(400).json({ error: 'isPEP must be true or false' });
+      }
+
+      if (isPEP && !pepDetails) {
+        return res.status(400).json({ error: 'pepDetails is required when isPEP is true' });
+      }
+
+      const dob = new Date(dateOfBirth);
+      const age = (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      if (Number.isNaN(dob.getTime()) || age < 18) {
+        return res.status(400).json({ error: 'User must be at least 18 years old' });
+      }
+
+      await user.update({
+        dateOfBirth,
+        nationality,
+        countryOfResidence,
+        occupation
+      });
+
       const verification = await Verification.create({
         userId: user.id,
         sessionId: uuidv4(),
@@ -62,6 +110,9 @@ class KYCController {
         documentBackImage: requiresBack ? documentBackImage : null,
         selfieImages,
         livenessResult: livenessResult || null,
+        sourceOfFunds,
+        isPEP,
+        pepDetails: isPEP ? pepDetails : null,
         reviewMode: 'manual',
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
       });
@@ -69,7 +120,9 @@ class KYCController {
       await ManualReviewCase.create({
         verificationId: verification.id,
         userId: user.id,
-        reason: 'New KYC submission pending manual review',
+        reason: isPEP
+          ? 'New KYC submission pending manual review (PEP declared — requires enhanced due diligence)'
+          : 'New KYC submission pending manual review',
         status: 'pending'
       });
 

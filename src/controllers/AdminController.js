@@ -116,7 +116,10 @@ class AdminController {
       const verification = await Verification.findByPk(verificationId, {
         include: [{
           model: User,
-          attributes: ['id', 'email', 'fullName', 'phone', 'status', 'createdAt']
+          attributes: [
+            'id', 'email', 'fullName', 'phone', 'status', 'createdAt',
+            'dateOfBirth', 'nationality', 'countryOfResidence', 'occupation'
+          ]
         }]
       });
 
@@ -142,7 +145,10 @@ class AdminController {
           {
             model: User,
             as: 'user',
-            attributes: ['id', 'email', 'fullName', 'phone', 'status', 'createdAt']
+            attributes: [
+              'id', 'email', 'fullName', 'phone', 'status', 'createdAt',
+              'dateOfBirth', 'nationality', 'countryOfResidence', 'occupation'
+            ]
           },
           {
             model: Verification,

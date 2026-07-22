@@ -8,11 +8,12 @@ built and owned end-to-end.
 
 | Capability | How it works today |
 |---|---|
-| Facial liveness capture | Live camera in the browser, 5 guided head positions (straight, left, right, up, down) — `apps/web/components/FacialCapture.tsx` |
+| Facial liveness capture | Live camera, 5 head positions (straight, left, right, up, down), **auto-captured** via real-time head-pose estimation (MediaPipe FaceLandmarker, self-hosted, runs entirely in-browser) — `apps/web/components/FacialCapture.tsx`, angle math in `apps/web/lib/facePose.ts` |
 | Document capture | Front + back capture for ID cards / driver's licenses, single photo-page capture for passports — `apps/web/components/DocumentCapture.tsx` |
-| Storage | Captured images stored on the `Verification` record (`documentFrontImage`, `documentBackImage`, `selfieImages`) |
+| AML / KYC declaration | Date of birth, nationality, country of residence, occupation, source of funds, and PEP (Politically Exposed Person) status — `apps/web/components/AMLForm.tsx` |
+| Storage | Captured images on the `Verification` record; AML fields split between `User` (profile: DOB, nationality, residence, occupation) and `Verification` (declared per-submission: source of funds, PEP) |
 | Decision | Manual review by a human admin today (`reviewMode: 'manual'`); the `rawData`/`livenessResult` JSONB fields exist so an in-house automated check can plug in later without a schema change |
-| Review UI | `/admin/reviews` — admins see the submitted photos, add notes, and approve/reject |
+| Review UI | `/admin/reviews` — admins see the submitted photos and full AML declaration (PEP cases are flagged), add notes, and approve/reject |
 
 ## Why manual review (for now)
 
@@ -42,9 +43,25 @@ This is a deliberate, incremental path:
 - `documentFrontImage`, `documentBackImage` — base64 captures
 - `selfieImages` — array of the 5 rotation-angle captures
 - `livenessResult` — reserved for a future automated liveness score
+- `sourceOfFunds`, `isPEP`, `pepDetails` — AML declaration for this submission
 - `reviewMode` — `'manual'` today, `'automatic'` once an in-house/licensed
   automated check is wired in
 - `status`, `verifiedAt`, `rejectionReason`
+
+`User` (`src/models/User.js`) also carries persistent KYC profile fields set
+on first submission: `dateOfBirth`, `nationality`, `countryOfResidence`,
+`occupation`.
+
+### Head-pose detection
+
+`apps/web/lib/facePose.ts` extracts yaw/pitch/roll from the 4x4 facial
+transformation matrix MediaPipe returns, and checks it against per-position
+thresholds (`ANGLE_THRESHOLD_DEG`, `STRAIGHT_TOLERANCE_DEG`). These were set
+from standard conventions but **have not been calibrated against a real
+camera + real face** — this was built in an environment without camera
+hardware. `FacialCapture.tsx` shows a live yaw/pitch debug readout in
+development mode to make tuning easy, and always offers a manual "Capture
+Anyway" fallback after ~9 seconds so detection issues never block a user.
 
 `ManualReviewCase` (`src/models/ManualReviewCase.js`) — one row per
 verification pending human review; tracks who reviewed it, when, and their

@@ -55,6 +55,21 @@ module.exports = (sequelize) => {
       type: DataTypes.JSONB,
       allowNull: true
     },
+    // AML / KYC compliance declaration, captured at the time of this
+    // verification (re-declared each cycle in case circumstances changed)
+    sourceOfFunds: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    isPEP: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: false
+    },
+    pepDetails: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
     reviewMode: {
       type: DataTypes.ENUM('automatic', 'manual'),
       defaultValue: 'manual'

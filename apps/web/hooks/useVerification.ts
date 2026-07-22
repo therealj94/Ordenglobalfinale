@@ -3,6 +3,16 @@ import { apiClient } from '@/lib/apiClient';
 
 export type DocumentType = 'PASSPORT' | 'ID_CARD' | 'DRIVERS_LICENSE';
 
+export interface AMLInfo {
+  dateOfBirth: string;
+  nationality: string;
+  countryOfResidence: string;
+  occupation: string;
+  sourceOfFunds: string;
+  isPEP: boolean;
+  pepDetails?: string;
+}
+
 export interface KYCSubmission {
   userId: string;
   documentType: DocumentType;
@@ -11,6 +21,7 @@ export interface KYCSubmission {
   documentBackImage?: string;
   selfieImages: string[];
   livenessResult?: Record<string, any>;
+  amlInfo: AMLInfo;
 }
 
 export interface KYCStatus {

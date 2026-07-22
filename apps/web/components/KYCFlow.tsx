@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
-import { useVerification } from '@/hooks/useVerification';
+import { useVerification, AMLInfo } from '@/hooks/useVerification';
 import toast from 'react-hot-toast';
+import AMLForm from './AMLForm';
 import FacialCapture from './FacialCapture';
 import DocumentCapture, { DocumentCaptureResult } from './DocumentCapture';
 import {
@@ -18,21 +19,27 @@ interface KYCFlowProps {
   onStatusChange?: (status: 'approved' | 'pending' | 'rejected', data: any) => void;
 }
 
-type Step = 'info' | 'facial' | 'document' | 'submitting' | 'review' | 'completed' | 'failed';
+type Step = 'info' | 'aml' | 'facial' | 'document' | 'submitting' | 'review' | 'completed' | 'failed';
 
 export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowProps) {
   const router = useRouter();
   const { submitKYC, getKYCStatus, loading } = useVerification();
   const [step, setStep] = useState<Step>('info');
+  const [amlInfo, setAmlInfo] = useState<AMLInfo | null>(null);
   const [selfieImages, setSelfieImages] = useState<string[]>([]);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
 
-  const steps = ['Start', 'Facial Verification', 'Document Scan', 'Review', 'Completed'];
-  const currentStepIndex = ['info', 'facial', 'document', 'submitting', 'completed'].indexOf(
+  const steps = ['Start', 'Compliance Info', 'Facial Verification', 'Document Scan', 'Review', 'Completed'];
+  const currentStepIndex = ['info', 'aml', 'facial', 'document', 'submitting', 'completed'].indexOf(
     step === 'review' || step === 'failed' ? 'submitting' : step
   );
 
   const handleStartVerification = () => {
+    setStep('aml');
+  };
+
+  const handleAMLComplete = (data: AMLInfo) => {
+    setAmlInfo(data);
     setStep('facial');
   };
 
@@ -43,6 +50,12 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
   };
 
   const handleDocumentComplete = async (result: DocumentCaptureResult) => {
+    if (!amlInfo) {
+      toast.error('Missing compliance information — please restart');
+      setStep('aml');
+      return;
+    }
+
     setStep('submitting');
     try {
       await submitKYC({
@@ -51,7 +64,8 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
         documentFrontImage: result.frontImage,
         documentBackImage: result.backImage,
         selfieImages,
-        livenessResult: { anglesCaptured: selfieImages.length, method: 'guided-rotation' }
+        livenessResult: { anglesCaptured: selfieImages.length, method: 'guided-rotation' },
+        amlInfo
       });
 
       toast.success('Submitted! Your verification is being reviewed.');
@@ -146,15 +160,23 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
               <div className="max-w-2xl">
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">Verify Your Identity</h2>
                 <p className="text-gray-600 text-lg mb-8">
-                  Complete your identity verification in just 3 steps. This secure process takes about 5 minutes.
+                  Complete your identity verification in a few steps. This secure process takes about 5 minutes.
                 </p>
 
                 <div className="space-y-4 mb-8">
+                  <div className="flex items-start bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                    <div className="text-2xl mr-4">📋</div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Compliance Information</h3>
+                      <p className="text-gray-600 text-sm">A few required questions (AML/KYC) before we can verify you</p>
+                    </div>
+                  </div>
+
                   <div className="flex items-start bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <div className="text-2xl mr-4">📸</div>
                     <div>
                       <h3 className="font-semibold text-gray-900">Facial Verification</h3>
-                      <p className="text-gray-600 text-sm">We'll capture your face from 5 angles to verify liveness</p>
+                      <p className="text-gray-600 text-sm">Hold each position — 5 angles capture automatically to verify liveness</p>
                     </div>
                   </div>
 
@@ -195,6 +217,8 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
               </div>
             </div>
           )}
+
+          {step === 'aml' && <AMLForm onSubmit={handleAMLComplete} />}
 
           {step === 'facial' && (
             <FacialCapture
