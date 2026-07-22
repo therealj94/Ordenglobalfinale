@@ -9,7 +9,7 @@ built and owned end-to-end.
 | Capability | How it works today |
 |---|---|
 | Facial liveness capture | Live camera, 5 head positions (straight, left, right, up, down), **auto-captured** via real-time head-pose estimation (MediaPipe FaceLandmarker, self-hosted, runs entirely in-browser) — `apps/web/components/FacialCapture.tsx`, angle math in `apps/web/lib/facePose.ts` |
-| Document capture | Front + back capture for ID cards / driver's licenses, single photo-page capture for passports — `apps/web/components/DocumentCapture.tsx` |
+| Document capture | Front + back capture for ID cards / driver's licenses, single photo-page capture for passports, **auto-captured** once the frame is bright and in focus (client-side sharpness/brightness check, `apps/web/lib/docQuality.ts`) — with manual capture and file upload as fallbacks — `apps/web/components/DocumentCapture.tsx` |
 | AML / KYC declaration | Date of birth, nationality, country of residence, occupation, source of funds, and PEP (Politically Exposed Person) status — `apps/web/components/AMLForm.tsx` |
 | Automatic decision | Image **quality** gate (resolution / brightness / blank-image detection) — see below | 
 | GENESIS ID (GID) | Permanent cross-ecosystem identifier assigned on approval — see below |

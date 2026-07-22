@@ -68,6 +68,16 @@ module.exports = (sequelize) => {
       type: DataTypes.DATE,
       allowNull: true
     },
+    // Password reset — we store a SHA-256 hash of the emailed token (never
+    // the raw token) so a database leak can't be used to reset accounts.
+    passwordResetToken: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    passwordResetExpires: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     isActive: {
       type: DataTypes.BOOLEAN,
       defaultValue: true

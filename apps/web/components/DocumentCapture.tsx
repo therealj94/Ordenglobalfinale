@@ -1,7 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { FiUpload, FiCheck, FiRotateCw, FiFileText, FiCamera } from 'react-icons/fi';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { FiUpload, FiCheck, FiRotateCw, FiFileText, FiCamera, FiCameraOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { DocumentType } from '@/hooks/useVerification';
+import { analyzeDocFrame, isDocFrameGood, DocFrameMetrics } from '@/lib/docQuality';
 
 export interface DocumentCaptureResult {
   documentType: DocumentType;
@@ -22,83 +23,186 @@ const DOC_OPTIONS: { type: DocumentType; label: string; needsBack: boolean }[] =
   { type: 'DRIVERS_LICENSE', label: "🚗 Driver's License", needsBack: true }
 ];
 
+const STABLE_HOLD_MS = 900; // frame must stay "good" this long before auto-capture
+const MANUAL_FALLBACK_AFTER_MS = 6000; // offer a manual button if auto-capture is slow
+const DETECTION_INTERVAL_MS = 150; // ~6-7 checks/sec
+const SHOW_DEBUG = process.env.NODE_ENV !== 'production';
+
 export default function DocumentCapture({ onCapture, onError }: DocumentCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null); // full-res capture
+  const sampleCanvasRef = useRef<HTMLCanvasElement>(null); // small analysis buffer
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const holdStartRef = useRef<number | null>(null);
+  const capturingRef = useRef(false);
 
   const [documentType, setDocumentType] = useState<DocumentType | null>(null);
   const [side, setSide] = useState<Side>('front');
   const [frontImage, setFrontImage] = useState<string | null>(null);
   const [backImage, setBackImage] = useState<string | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const [useCamera, setUseCamera] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const [showManualFallback, setShowManualFallback] = useState(false);
+  const [metrics, setMetrics] = useState<DocFrameMetrics | null>(null);
 
   const selectedDoc = DOC_OPTIONS.find((d) => d.type === documentType);
   const currentImage = side === 'front' ? frontImage : backImage;
 
+  const stopCamera = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setStream(null);
+    setUseCamera(false);
+    setHoldProgress(0);
+    holdStartRef.current = null;
+  }, []);
+
+  const setImageForSide = useCallback(
+    (photo: string) => {
+      if (side === 'front') setFrontImage(photo);
+      else setBackImage(photo);
+    },
+    [side]
+  );
+
+  const capturePhoto = useCallback(() => {
+    if (capturingRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    if (!video.videoWidth || !video.videoHeight) {
+      toast.error('Camera is still starting up, try again in a moment');
+      return;
+    }
+
+    capturingRef.current = true;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      capturingRef.current = false;
+      return;
+    }
+
+    // Back/environment camera is not mirrored — capture as-is.
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    const photo = canvas.toDataURL('image/jpeg', 0.92);
+    setImageForSide(photo);
+    stopCamera();
+    toast.success(`${side === 'front' ? 'Front' : 'Back'} captured!`);
+    capturingRef.current = false;
+  }, [side, setImageForSide, stopCamera]);
+
   const startCamera = async () => {
     try {
+      setCameraError(false);
+      setCameraLoading(true);
+      setUseCamera(true);
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'environment' },
         audio: false
       });
-
-      // The <video> element only mounts once useCamera flips to true, so its
-      // ref isn't attached yet at this point — hand the stream to state and
-      // let the effect below attach it once the element exists.
+      // Hand the stream to state; the effect below attaches it once the
+      // <video> element is actually in the DOM (avoids a render race that
+      // could otherwise leave the loading spinner stuck).
+      streamRef.current = mediaStream;
       setStream(mediaStream);
-      setUseCamera(true);
     } catch (err) {
-      onError('Could not access camera.');
+      setCameraError(true);
+      setCameraLoading(false);
+      onError('Could not access camera. You can upload a photo instead.');
     }
   };
 
+  // Attach the live stream to the <video> once both exist.
   useEffect(() => {
-    if (useCamera && stream && videoRef.current) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(() => {});
+    if (useCamera && stream && !currentImage && videoRef.current) {
+      const video = videoRef.current;
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+          video.play().catch(() => {});
+          setCameraLoading(false);
+        };
+      }
     }
-  }, [useCamera, stream]);
+  }, [useCamera, stream, currentImage]);
 
-  const stopCamera = () => {
-    stream?.getTracks().forEach((track) => track.stop());
-    setUseCamera(false);
-  };
+  // Reset the hold timer & fallback whenever we (re)enter live camera mode.
+  useEffect(() => {
+    if (!useCamera || currentImage) return;
+    holdStartRef.current = null;
+    setHoldProgress(0);
+    setShowManualFallback(false);
+    const t = setTimeout(() => setShowManualFallback(true), MANUAL_FALLBACK_AFTER_MS);
+    return () => clearTimeout(t);
+  }, [useCamera, currentImage, side]);
 
-  const setImageForSide = (photo: string) => {
-    if (side === 'front') setFrontImage(photo);
-    else setBackImage(photo);
-  };
+  // Auto-capture detection loop
+  useEffect(() => {
+    if (!useCamera || currentImage || cameraLoading || cameraError) return;
 
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    if (!videoRef.current.videoWidth || !videoRef.current.videoHeight) {
-      toast.error('Camera is still starting up, try again in a moment');
-      return;
-    }
-    const ctx = canvasRef.current.getContext('2d');
-    if (!ctx) return;
+    let lastCheck = 0;
 
-    canvasRef.current.width = videoRef.current.videoWidth;
-    canvasRef.current.height = videoRef.current.videoHeight;
-    ctx.drawImage(videoRef.current, 0, 0);
+    const loop = () => {
+      const video = videoRef.current;
+      const sampleCanvas = sampleCanvasRef.current;
 
-    const photo = canvasRef.current.toDataURL('image/jpeg', 0.9);
-    setImageForSide(photo);
-    stopCamera();
-    toast.success(`${side === 'front' ? 'Front' : 'Back'} captured!`);
-  };
+      if (!video || !sampleCanvas || capturingRef.current) {
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+
+      const now = performance.now();
+      if (now - lastCheck >= DETECTION_INTERVAL_MS && video.videoWidth > 0) {
+        lastCheck = now;
+        const m = analyzeDocFrame(video, sampleCanvas);
+        if (m) {
+          setMetrics(m);
+          if (isDocFrameGood(m)) {
+            if (holdStartRef.current === null) holdStartRef.current = now;
+            const elapsed = now - holdStartRef.current;
+            setHoldProgress(Math.min(100, (elapsed / STABLE_HOLD_MS) * 100));
+            if (elapsed >= STABLE_HOLD_MS) {
+              holdStartRef.current = null;
+              capturePhoto();
+              return;
+            }
+          } else {
+            holdStartRef.current = null;
+            setHoldProgress(0);
+          }
+        }
+      }
+
+      rafRef.current = requestAnimationFrame(loop);
+    };
+
+    rafRef.current = requestAnimationFrame(loop);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [useCamera, currentImage, cameraLoading, cameraError, capturePhoto]);
+
+  // Clean up camera on unmount
+  useEffect(() => () => stopCamera(), [stopCamera]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     if (!file.type.startsWith('image/')) {
       onError('Please select an image file');
       return;
     }
-
     const reader = new FileReader();
     reader.onload = (e) => {
       const photo = e.target?.result as string;
@@ -181,7 +285,8 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
           )}
         </div>
         <p className="text-gray-600 mb-8">
-          Capture a clear photo of the {side === 'front' ? 'front' : 'back'} side. Make sure all text is visible.
+          Hold the {side === 'front' ? 'front' : 'back'} of your document inside the frame — it captures
+          automatically once it's clear and readable.
         </p>
 
         {/* Photo Preview */}
@@ -202,31 +307,78 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
         {/* Camera Preview */}
         {useCamera && !currentImage && (
           <div className="relative mb-8 rounded-2xl overflow-hidden shadow-2xl bg-black">
-            <video ref={videoRef} autoPlay playsInline className="w-full aspect-video object-cover" />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full aspect-video object-cover" />
 
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div
-                className="relative w-full max-w-xs border-4 border-cyan-400 rounded-xl shadow-lg"
-                style={{ aspectRatio: '1.6/1' }}
-              >
-                <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-cyan-400"></div>
-                <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-cyan-400"></div>
-                <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-cyan-400"></div>
-                <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-cyan-400"></div>
+            {cameraLoading && !cameraError && (
+              <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                <div className="text-center text-white">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                  <p>Initializing camera...</p>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-30 pointer-events-none">
-              <div className="text-center text-white">
-                <FiFileText size={48} className="mb-4 mx-auto" />
-                <h3 className="text-2xl font-bold mb-2">
-                  Capture {side === 'front' ? 'Front' : 'Back'}
-                </h3>
-                <p className="text-blue-200">Position the document within the frame</p>
+            {cameraError && (
+              <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                <div className="text-center text-white px-6">
+                  <FiCameraOff size={40} className="mx-auto mb-4 text-red-400" />
+                  <p>Couldn't access your camera. Upload a photo instead.</p>
+                </div>
               </div>
-            </div>
+            )}
+
+            {!cameraLoading && !cameraError && (
+              <>
+                {/* Framing guide */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div
+                    className={`relative w-4/5 border-4 rounded-xl shadow-lg transition-colors ${
+                      holdProgress > 0 ? 'border-green-400' : 'border-cyan-400'
+                    }`}
+                    style={{ aspectRatio: '1.6/1' }}
+                  >
+                    <div className={`absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 ${holdProgress > 0 ? 'border-green-400' : 'border-cyan-400'}`}></div>
+                    <div className={`absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 ${holdProgress > 0 ? 'border-green-400' : 'border-cyan-400'}`}></div>
+                    <div className={`absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 ${holdProgress > 0 ? 'border-green-400' : 'border-cyan-400'}`}></div>
+                    <div className={`absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 ${holdProgress > 0 ? 'border-green-400' : 'border-cyan-400'}`}></div>
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none">
+                  <div className="bg-black bg-opacity-60 rounded-full px-6 py-3 text-center text-white flex items-center gap-3">
+                    <FiFileText size={22} />
+                    <div className="text-left">
+                      <p className="font-bold leading-tight">Capture {side === 'front' ? 'Front' : 'Back'}</p>
+                      <p className="text-blue-200 text-xs">
+                        {holdProgress > 0 ? 'Hold still...' : 'Fit the document inside the frame'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hold-still progress */}
+                {holdProgress > 0 && (
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none">
+                    <div className="bg-black bg-opacity-60 rounded-full px-4 py-2 text-white text-sm flex items-center gap-2">
+                      <div className="w-24 bg-gray-600 h-2 rounded-full overflow-hidden">
+                        <div className="bg-green-400 h-2 rounded-full" style={{ width: `${holdProgress}%` }} />
+                      </div>
+                      Hold still...
+                    </div>
+                  </div>
+                )}
+
+                {SHOW_DEBUG && metrics && (
+                  <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-green-300 text-[10px] font-mono px-2 py-1 rounded pointer-events-none">
+                    bright {metrics.brightness.toFixed(0)} sharp {metrics.sharpness.toFixed(1)}
+                  </div>
+                )}
+              </>
+            )}
 
             <canvas ref={canvasRef} className="hidden" />
+            <canvas ref={sampleCanvasRef} className="hidden" />
           </div>
         )}
 
@@ -238,7 +390,7 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
                 onClick={startCamera}
                 className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-4 rounded-lg font-bold text-lg hover:from-blue-700 hover:to-cyan-700 transition transform hover:scale-105 flex items-center justify-center"
               >
-                📷 Use Camera
+                📷 Use Camera (auto-capture)
               </button>
 
               <button
@@ -249,27 +401,24 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
                 Upload Photo
               </button>
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
             </>
           )}
 
           {useCamera && !currentImage && (
             <>
-              <button
-                onClick={capturePhoto}
-                className="w-full bg-green-600 text-white py-4 rounded-lg font-bold hover:bg-green-700 transition flex items-center justify-center"
-              >
-                📸 Capture Photo
-              </button>
+              {showManualFallback && !cameraError && (
+                <button
+                  onClick={capturePhoto}
+                  className="w-full bg-gray-700 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition flex items-center justify-center"
+                >
+                  <FiCamera className="mr-2" />
+                  Having trouble? Capture Anyway
+                </button>
+              )}
               <button
                 onClick={stopCamera}
-                className="w-full bg-gray-600 text-white py-2 rounded-lg font-semibold hover:bg-gray-700 transition"
+                className="w-full bg-gray-500 text-white py-2 rounded-lg font-semibold hover:bg-gray-600 transition"
               >
                 Cancel
               </button>
@@ -301,7 +450,7 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <h4 className="font-semibold text-blue-900 mb-3">✓ Tips for clear photos:</h4>
           <ul className="text-sm text-blue-800 space-y-2">
-            <li>• Make sure the entire document is visible</li>
+            <li>• Make sure the entire document is visible inside the frame</li>
             <li>• Use natural light to avoid glares</li>
             <li>• Keep the document flat and straight</li>
             <li>• All text must be readable</li>

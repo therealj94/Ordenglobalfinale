@@ -102,6 +102,47 @@ POST /auth/logout
 Authorization: Bearer <access_token>
 ```
 
+Revokes the current session. After logout, that session's `refreshToken` can no longer mint new access tokens.
+
+### 6. Forgot Password
+```
+POST /auth/forgot-password
+```
+
+**Request:**
+```json
+{ "email": "user@example.com" }
+```
+
+**Response (always the same, whether or not the email exists):**
+```json
+{ "message": "If an account exists for that email, a reset link has been sent." }
+```
+
+Sends an email with a link to `FRONTEND_URL/auth/reset-password?token=<token>`. The token is single-use,
+expires in 1 hour, and only a SHA-256 hash of it is stored in the database.
+
+### 7. Reset Password
+```
+POST /auth/reset-password
+```
+
+**Request:**
+```json
+{ "token": "<token-from-email>", "password": "newSecurePassword123" }
+```
+
+**Response:**
+```json
+{ "message": "Your password has been reset. You can now log in." }
+```
+
+Fails with `400` if the token is invalid or expired. On success, all of the user's existing sessions are
+revoked.
+
+> **Rate limiting:** `/auth/login`, `/auth/register` and `/auth/reset-password` allow 20 requests per IP
+> per 15 minutes; `/auth/forgot-password` allows 5 per IP per hour.
+
 ---
 
 ## KYC Endpoints
@@ -341,4 +382,8 @@ or, for app endpoints:
 - **Refresh token**: 7 days
 
 ## Rate Limiting
-Not yet implemented — planned for a future phase.
+Implemented on the auth endpoints via `express-rate-limit` (keyed by IP):
+- `/auth/login`, `/auth/register`, `/auth/reset-password`: 20 requests per 15 minutes
+- `/auth/forgot-password`: 5 requests per hour
+
+In production behind a load balancer, the app sets `trust proxy` so limits key on the real client IP.

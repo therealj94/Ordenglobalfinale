@@ -43,6 +43,19 @@ class EmailService {
     );
   }
 
+  async sendPasswordReset(user, resetUrl) {
+    await this.send(
+      user.email,
+      'Reset your password — GENESIS ID',
+      `<h2>Password reset requested</h2>
+       <p>Hi ${user.fullName || ''},</p>
+       <p>We received a request to reset your GENESIS ID password. Click the link below to choose a new one. This link expires in 1 hour.</p>
+       <p><a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">Reset password</a></p>
+       <p>Or copy this link into your browser:<br>${resetUrl}</p>
+       <p>If you didn't request this, you can safely ignore this email — your password won't change.</p>`
+    );
+  }
+
   async sendVerificationRejected(user, reason) {
     await this.send(
       user.email,

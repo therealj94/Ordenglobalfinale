@@ -17,7 +17,8 @@ Once verified, users get a permanent **GENESIS ID (GID)** — e.g.
 
 ## ✨ Key Features
 
-- **In-house facial + document verification** — no external verification API
+- **In-house facial + document verification** — no external verification API. Both the selfie angles and the ID/passport photos **auto-capture** from the camera (no shutter button), with manual capture and file upload as fallbacks
+- **Password reset by email**: secure single-use token (hashed at rest, 1-hour expiry)
 - **GENESIS ID (GID)**: permanent cross-ecosystem identifier assigned on approval, format `GID-<5 digits + letter>-<nationality alpha-3>`
 - **Automatic quality gate**: clear photos get approved instantly (with a documented, honest scope — see VERIFICATION_ENGINE.md); anything unclear after 3 attempts goes to manual review
 - **Central SSO**: Single Sign-On across all Orden Global applications
@@ -102,6 +103,8 @@ npm run dev                 # http://localhost:3001
 - `GET  /api/auth/me` - Current user profile
 - `POST /api/auth/refresh` - Refresh JWT token
 - `POST /api/auth/logout` - Logout user
+- `POST /api/auth/forgot-password` - Request a password reset link by email
+- `POST /api/auth/reset-password` - Set a new password with the emailed token
 
 ### KYC
 - `POST /api/kyc/submit` - Submit facial + document capture for review
@@ -254,7 +257,7 @@ MIT
 - [x] Admin dashboard (Next.js)
 - [x] KYC SDK for ecosystem apps
 - [ ] Automated document/liveness analysis (see VERIFICATION_ENGINE.md)
-- [ ] Rate limiting and DDoS protection
+- [x] Rate limiting on auth endpoints
 - [ ] Two-factor authentication (2FA)
 - [ ] Advanced analytics and reporting
 - [ ] Compliance certifications (ISO 27001, SOC 2)

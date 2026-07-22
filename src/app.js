@@ -14,6 +14,12 @@ const errorMiddleware = require('./middleware/errorMiddleware');
 
 const app = express();
 
+// Behind a load balancer (e.g. AWS ALB) in production, trust the first proxy
+// so rate limiting and req.ip use the real client IP from X-Forwarded-For.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
