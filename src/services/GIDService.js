@@ -2,6 +2,7 @@ const { toAlpha3 } = require('../data/countries');
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 const MAX_ATTEMPTS = 10;
+const GID_VALIDITY_YEARS = 4;
 
 function randomDigit() {
   return Math.floor(Math.random() * 10).toString();
@@ -42,8 +43,11 @@ async function generateUniqueGID(User, nationality) {
 async function assignGIDIfMissing(user, User) {
   if (user.gid) return user.gid;
   const gid = await generateUniqueGID(User, user.nationality);
-  await user.update({ gid });
+  const issuedAt = new Date();
+  const expiresAt = new Date(issuedAt);
+  expiresAt.setFullYear(expiresAt.getFullYear() + GID_VALIDITY_YEARS);
+  await user.update({ gid, gidIssuedAt: issuedAt, gidExpiresAt: expiresAt });
   return gid;
 }
 
-module.exports = { buildCandidate, generateUniqueGID, assignGIDIfMissing };
+module.exports = { buildCandidate, generateUniqueGID, assignGIDIfMissing, GID_VALIDITY_YEARS };

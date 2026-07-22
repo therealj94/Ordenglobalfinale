@@ -225,6 +225,51 @@ Authorization: Bearer <onboardingToken or accessToken>
 `status` can also be `"processing"` — the decision hasn't been applied yet (still inside the ~1 minute
 wait). Keep polling this endpoint until it changes to `approved`, `pending`, or `rejected`.
 
+### 3. Upload GENESIS ID Card Photo
+```
+POST /kyc/id-card-photo
+Authorization: Bearer <accessToken>
+```
+
+**Request:**
+```json
+{ "userId": "user-uuid", "photo": "data:image/jpeg;base64,..." }
+```
+
+Requires the user to already be `verified` with a `gid` assigned — this is the dedicated photo shown on
+the visual GENESIS ID card, separate from the KYC selfies. Fails with `403` otherwise.
+
+**Response:**
+```json
+{ "message": "GENESIS ID card photo updated" }
+```
+
+---
+
+## Public Endpoints
+
+No authentication — this is what a GENESIS ID card's QR code links to (via the `/verify-gid/:gid` page).
+Rate-limited to 30 requests/minute per IP.
+
+### Look Up a GENESIS ID
+```
+GET /public/gid/:gid
+```
+
+**Response:**
+```json
+{
+  "gid": "GID-85m856-hnd",
+  "fullName": "John Doe",
+  "nationality": "HN",
+  "idCardPhoto": "data:image/jpeg;base64,...",
+  "status": "verified"
+}
+```
+
+Deliberately minimal — no date of birth, issue/expiry dates, or contact info. Returns `404` if the GID
+doesn't exist or the user isn't currently verified.
+
 ---
 
 ## App Integration Endpoints

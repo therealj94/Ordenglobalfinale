@@ -4,6 +4,7 @@ import { useRequireAdmin } from '@/hooks/useRequireAdmin';
 import { apiClient } from '@/lib/apiClient';
 import { User } from '@/types';
 import toast from 'react-hot-toast';
+import GenesisIDCard from '@/components/GenesisIDCard';
 import {
   FiSearch,
   FiLoader,
@@ -12,7 +13,9 @@ import {
   FiClock,
   FiXCircle,
   FiChevronLeft,
-  FiChevronRight
+  FiChevronRight,
+  FiCreditCard,
+  FiX
 } from 'react-icons/fi';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -30,6 +33,8 @@ export default function AdminUsersPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [cardUser, setCardUser] = useState<User | null>(null);
+  const [cardLoading, setCardLoading] = useState(false);
   const limit = 20;
 
   const fetchUsers = useCallback(async () => {
@@ -60,6 +65,18 @@ export default function AdminUsersPage() {
       fetchUsers();
     } catch (error) {
       toast.error('Failed to deactivate user');
+    }
+  };
+
+  const handleViewCard = async (userId: string) => {
+    try {
+      setCardLoading(true);
+      const response = await apiClient.get(`/admin/users/${userId}`);
+      setCardUser(response.data);
+    } catch (error) {
+      toast.error('Failed to load GENESIS ID card');
+    } finally {
+      setCardLoading(false);
     }
   };
 
@@ -150,13 +167,24 @@ export default function AdminUsersPage() {
                         {new Date(user.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => handleDelete(user.id, user.email)}
-                          className="text-red-600 hover:text-red-800"
-                          title="Deactivate user"
-                        >
-                          <FiTrash2 />
-                        </button>
+                        <div className="flex items-center gap-3">
+                          {user.status === 'verified' && user.gid && (
+                            <button
+                              onClick={() => handleViewCard(user.id)}
+                              className="text-indigo-600 hover:text-indigo-800"
+                              title="View GENESIS ID card"
+                            >
+                              <FiCreditCard />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(user.id, user.email)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Deactivate user"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -191,6 +219,44 @@ export default function AdminUsersPage() {
           )}
         </div>
       </div>
+
+      {/* GENESIS ID card modal */}
+      {(cardLoading || cardUser) && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50"
+          onClick={() => setCardUser(null)}
+        >
+          <div className="relative w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setCardUser(null)}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300"
+            >
+              <FiX size={28} />
+            </button>
+            {cardLoading ? (
+              <div className="bg-white rounded-2xl p-16 flex justify-center">
+                <FiLoader className="animate-spin text-indigo-600" size={32} />
+              </div>
+            ) : cardUser ? (
+              cardUser.idCardPhoto ? (
+                <GenesisIDCard
+                  fullName={cardUser.fullName || cardUser.email}
+                  gid={cardUser.gid || ''}
+                  nationality={cardUser.nationality}
+                  idCardPhoto={cardUser.idCardPhoto}
+                  dateOfBirth={cardUser.dateOfBirth}
+                  issuedAt={cardUser.gidIssuedAt}
+                  expiresAt={cardUser.gidExpiresAt}
+                />
+              ) : (
+                <div className="bg-white rounded-2xl p-10 text-center">
+                  <p className="text-gray-600">This user hasn't added a card photo yet.</p>
+                </div>
+              )
+            ) : null}
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

@@ -10,6 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const appRoutes = require('./routes/appRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const kycRoutes = require('./routes/kycRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 const errorMiddleware = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -48,6 +49,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/apps', appRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/kyc', kycRoutes);
+app.use('/api/public', publicRoutes);
 
 // 404 handler
 app.use((req, res) => {

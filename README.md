@@ -19,7 +19,8 @@ Once verified, users get a permanent **GENESIS ID (GID)** — e.g.
 
 - **In-house facial + document verification** — no external verification API. Both the selfie angles and the ID/passport photos **auto-capture** from the camera (no shutter button), with manual capture and file upload as fallbacks
 - **Password reset by email**: secure single-use token (hashed at rest, 1-hour expiry)
-- **GENESIS ID (GID)**: permanent cross-ecosystem identifier assigned on approval, format `GID-<5 digits + letter>-<nationality alpha-3>`
+- **GENESIS ID (GID)**: permanent cross-ecosystem identifier assigned on approval, format `GID-<5 digits + letter>-<nationality alpha-3>`, valid 4 years
+- **Visual GENESIS ID card**: photo + GID + QR code, shown on `/dashboard`; the QR opens a public, minimal-info verification page (`/verify-gid/:gid`)
 - **Automatic quality gate**: clear photos get approved instantly (with a documented, honest scope — see VERIFICATION_ENGINE.md); anything unclear after 3 attempts goes to manual review
 - **Central SSO**: Single Sign-On across all Orden Global applications
 - **JWT Authentication**: Secure, stateless token-based authentication

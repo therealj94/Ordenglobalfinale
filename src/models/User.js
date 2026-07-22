@@ -56,6 +56,21 @@ module.exports = (sequelize) => {
       allowNull: false,
       defaultValue: 0
     },
+    // Dedicated photo for the visual GENESIS ID card — deliberately separate
+    // from the KYC selfies (a proper "ID card" style photo, taken after
+    // verification, not one of the liveness-rotation captures).
+    idCardPhoto: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    gidIssuedAt: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    gidExpiresAt: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     status: {
       type: DataTypes.ENUM('pending', 'verified', 'rejected', 'expired'),
       defaultValue: 'pending'

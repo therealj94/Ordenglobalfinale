@@ -7,6 +7,11 @@ export interface User {
   status: 'pending' | 'verified' | 'rejected' | 'expired';
   role?: 'user' | 'admin';
   gid?: string | null;
+  nationality?: string | null;
+  dateOfBirth?: string | null;
+  idCardPhoto?: string | null;
+  gidIssuedAt?: string | null;
+  gidExpiresAt?: string | null;
   createdAt: string;
   lastLogin?: string;
 }

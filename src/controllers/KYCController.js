@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { User, Verification } = require('../models');
-const { checkSubmissionQuality } = require('../services/ImageQualityService');
+const { checkSubmissionQuality, checkImageQuality } = require('../services/ImageQualityService');
 const {
   DECISION_DELAY_MS,
   scheduleDecision,
@@ -220,6 +220,39 @@ class KYCController {
     } catch (error) {
       console.error('Get KYC status error:', error);
       res.status(500).json({ error: 'Failed to get KYC status' });
+    }
+  }
+
+  async uploadIdCardPhoto(req, res, next) {
+    try {
+      const { userId, photo } = req.body;
+
+      if (!isValidImage(photo)) {
+        return res.status(400).json({ error: 'A valid photo is required' });
+      }
+
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // The visual GENESIS ID card only makes sense once a user is actually
+      // verified and has a GID — this isn't part of the KYC decision itself.
+      if (user.status !== 'verified' || !user.gid) {
+        return res.status(403).json({ error: 'Only verified users with an assigned GID can set a card photo' });
+      }
+
+      const quality = await checkImageQuality(photo, { minWidth: 300, minHeight: 300, label: 'ID card photo' });
+      if (!quality.pass) {
+        return res.status(400).json({ error: quality.reason });
+      }
+
+      await user.update({ idCardPhoto: photo });
+
+      res.json({ message: 'GENESIS ID card photo updated' });
+    } catch (error) {
+      console.error('Upload ID card photo error:', error);
+      res.status(500).json({ error: 'Failed to upload ID card photo' });
     }
   }
 }

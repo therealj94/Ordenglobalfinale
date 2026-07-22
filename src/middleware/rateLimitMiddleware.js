@@ -20,4 +20,14 @@ const passwordResetLimiter = rateLimit({
   message: { error: 'Too many password reset requests. Please try again later.' }
 });
 
-module.exports = { authLimiter, passwordResetLimiter };
+// The public GID lookup (scanned from a GENESIS ID card's QR code) has no
+// login — bound it so it can't be used to scrape/enumerate GIDs at scale.
+const publicLookupLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again in a moment.' }
+});
+
+module.exports = { authLimiter, passwordResetLimiter, publicLookupLimiter };
