@@ -132,10 +132,11 @@ Una vez ambos dominios estén verificados con su propio certificado:
 
 ## Notas importantes
 
-- **El plan "starter" de Render no es gratis** (backend + base de datos
-  corriendo 24/7). Revisa los precios actuales en render.com/pricing antes
-  de confirmar — normalmente son unos pocos dólares al mes cada uno, muy
-  por debajo de los ~$110/mes de la ruta AWS.
+- **Render ya no tiene plan gratis para el backend** (solo para sitios
+  estáticos). El servicio web "Starter" cuesta ~$7/mes y la base de datos
+  "Basic 256mb" ~$7/mes más — total aproximado **~$14/mes**, muy por debajo
+  de los ~$110/mes de la ruta AWS. Revisa los precios actuales en
+  render.com/pricing antes de confirmar, pueden cambiar.
 - **Vercel es gratis** para este tipo de proyecto en su plan Hobby.
 - El primer request a Render después de estar inactivo puede tardar unos
   segundos en "despertar" si usas un plan con auto-sleep — normal, no es un

@@ -2,7 +2,7 @@ databases:
   - name: genesis-id-db
     databaseName: genesis_id_db
     user: genesis_id_user
-    plan: starter
+    plan: basic-256mb
 
 services:
   - type: web
