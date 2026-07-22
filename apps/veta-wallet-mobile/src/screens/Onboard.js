@@ -1,42 +1,88 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Animated, Easing, StyleSheet } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, ScrollView, Pressable, Animated, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { C, G } from '../theme';
 import { Header, Button3D, Card, hap, useToast } from '../ui';
 import { WALLET_SEED } from '../data';
+import * as api from '../api';
 
-// ---------------- KYC (simulado) ----------------
-export function Kyc({ nav }) {
-  const [step, setStep] = useState(0); // 0 form, 1 verifying, 2 done
-  const [msg, setMsg] = useState('Analizando documentos…');
-  const spin = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (step === 1) {
-      Animated.loop(Animated.timing(spin, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true })).start();
-      const msgs = ['Analizando documentos…', 'Comparando rostro…', 'Validando prueba de vida…', 'Registrando en Orden Global…'];
-      let i = 0;
-      const t = setInterval(() => { i++; if (i < msgs.length) setMsg(msgs[i]); else { clearInterval(t); setStep(2); } }, 1000);
-      return () => clearInterval(t);
+// ---------------- KYC — verificación real vía el motor GENESIS ID ----------------
+// La captura de documento/selfie y el formulario AML ocurren en la propia
+// interfaz web de GENESIS ID (ya construida y probada); esta pantalla solo
+// abre esa verificación como un servicio y espera el resultado final.
+export function Kyc({ nav, params }) {
+  const { userId, onboardingToken } = params || {};
+  const [step, setStep] = useState('intro'); // intro | opening | done | review | failed
+  const [failMsg, setFailMsg] = useState('');
+  const toast = useToast();
+
+  const startVerification = async () => {
+    if (!userId || !onboardingToken) {
+      setFailMsg('Falta información de tu registro. Vuelve a crear tu cuenta.');
+      setStep('failed');
+      return;
     }
-  }, [step]);
-  const rot = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+    setStep('opening');
+    try {
+      const redirectUrl = Linking.createURL('kyc-callback');
+      const url = api.kycVerifyUrl({ userId, onboardingToken, returnUrl: redirectUrl });
+      const result = await WebBrowser.openAuthSessionAsync(url, redirectUrl);
 
-  if (step === 1)
+      if (result.type === 'success' && result.url) {
+        const { queryParams } = Linking.parse(result.url);
+        const status = queryParams?.status;
+        if (status === 'approved') setStep('done');
+        else if (status === 'pending') setStep('review');
+        else {
+          setFailMsg('Tu verificación no pudo completarse. Intenta de nuevo con mejor iluminación y un documento válido.');
+          setStep('failed');
+        }
+      } else {
+        setStep('intro');
+        toast('Verificación cancelada.');
+      }
+    } catch (e) {
+      setFailMsg('No se pudo abrir la verificación. Revisa tu conexión e intenta de nuevo.');
+      setStep('failed');
+    }
+  };
+
+  if (step === 'opening')
     return (
       <View style={styles.center}>
-        <Animated.View style={[styles.spinner, { transform: [{ rotate: rot }] }]} />
-        <Text style={styles.bigTitle}>Verificando identidad</Text>
-        <Text style={styles.dim}>{msg}</Text>
+        <ActivityIndicator size="large" color={C.gold} />
+        <Text style={[styles.bigTitle, { marginTop: 22 }]}>Verificando identidad</Text>
+        <Text style={styles.dim}>Completa el proceso en la ventana que se abrió…</Text>
       </View>
     );
-  if (step === 2)
+  if (step === 'done')
     return (
       <View style={styles.center}>
         <View style={styles.checkBadge}><Ionicons name="checkmark" size={52} color={C.up} /></View>
         <Text style={styles.bigTitle}>Identidad verificada</Text>
-        <Text style={[styles.dim, { marginBottom: 26 }]}>Bienvenido a Orden Global, José</Text>
+        <Text style={[styles.dim, { marginBottom: 26 }]}>Bienvenido a Orden Global</Text>
         <Button3D title="Crear mi billetera" onPress={() => nav.go('seed')} style={{ width: 240 }} />
+      </View>
+    );
+  if (step === 'review')
+    return (
+      <View style={styles.center}>
+        <View style={styles.checkBadge}><Ionicons name="time" size={46} color={C.gold} /></View>
+        <Text style={styles.bigTitle}>En revisión</Text>
+        <Text style={[styles.dim, { marginBottom: 26 }]}>Tu verificación está siendo revisada por nuestro equipo — puede tardar hasta 24 horas. Te avisaremos por correo.</Text>
+        <Button3D title="Crear mi billetera" onPress={() => nav.go('seed')} style={{ width: 240 }} />
+      </View>
+    );
+  if (step === 'failed')
+    return (
+      <View style={styles.center}>
+        <View style={[styles.checkBadge, { borderColor: C.down, backgroundColor: 'rgba(240,119,107,0.12)' }]}><Ionicons name="close" size={52} color={C.down} /></View>
+        <Text style={styles.bigTitle}>No se pudo verificar</Text>
+        <Text style={[styles.dim, { marginBottom: 26 }]}>{failMsg}</Text>
+        <Button3D title="Intentar de nuevo" onPress={() => setStep('intro')} style={{ width: 240 }} />
       </View>
     );
 
@@ -46,7 +92,7 @@ export function Kyc({ nav }) {
       <ScrollView contentContainerStyle={{ padding: 22 }}>
         <View style={styles.kycIcon}><Ionicons name="shield-checkmark" size={34} color={C.gold} /></View>
         <Text style={[styles.bigTitle, { fontSize: 20 }]}>Verifica tu identidad</Text>
-        <Text style={[styles.dim, { textAlign: 'center', marginBottom: 18 }]}>Simulado — sin backend. Toca para completar los 3 pasos.</Text>
+        <Text style={[styles.dim, { textAlign: 'center', marginBottom: 18 }]}>Verificación por el motor GENESIS ID — válida para todas las apps de Orden Global.</Text>
         {['Datos personales', 'Documento (frente y reverso)', 'Selfie · prueba de vida'].map((s, i) => (
           <Card key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, padding: 14 }}>
             <View style={styles.stepNo}><Text style={{ color: C.gold, fontWeight: '800' }}>{i + 1}</Text></View>
@@ -54,7 +100,7 @@ export function Kyc({ nav }) {
             <Ionicons name="checkmark-circle" size={20} color={C.up} />
           </Card>
         ))}
-        <Button3D title="Iniciar verificación" onPress={() => setStep(1)} style={{ marginTop: 12 }} />
+        <Button3D title="Iniciar verificación" onPress={startVerification} style={{ marginTop: 12 }} />
       </ScrollView>
     </View>
   );

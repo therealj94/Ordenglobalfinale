@@ -11,6 +11,13 @@
  *     GenesisKYC.verify({
  *       userId: 'the-genesis-id-user-uuid',
  *       appName: 'veta-wallet',
+ *       // The onboarding token returned by POST /auth/register (or an
+ *       // access token, if this user already has a session). Required
+ *       // unless the browser already holds a GENESIS ID session for this
+ *       // user — an embedding app has its own login, not genesisid.online's,
+ *       // so without this the embedded page has no way to authenticate the
+ *       // KYC submission.
+ *       onboardingToken: 'the-jwt-from-register-or-login',
  *       onComplete: function (result) {
  *         // result = { status: 'approved' | 'pending' | 'rejected', verificationId }
  *       },
@@ -72,6 +79,7 @@
     options = options || {};
     var userId = options.userId;
     var appName = options.appName;
+    var onboardingToken = options.onboardingToken;
     var onComplete = options.onComplete || function () {};
     var onError = options.onError || function () {};
     var baseUrl = options.baseUrl || config.baseUrl;
@@ -83,7 +91,8 @@
 
     var ui = createOverlay();
     var url = baseUrl + '/embed/verify?userId=' + encodeURIComponent(userId) +
-      '&appName=' + encodeURIComponent(appName);
+      '&appName=' + encodeURIComponent(appName) +
+      (onboardingToken ? '&onboardingToken=' + encodeURIComponent(onboardingToken) : '');
 
     ui.iframe.src = url;
     document.body.appendChild(ui.overlay);
@@ -123,6 +132,7 @@
     options = options || {};
     var userId = options.userId;
     var appName = options.appName;
+    var onboardingToken = options.onboardingToken;
     var returnUrl = options.returnUrl || window.location.href;
     var baseUrl = options.baseUrl || config.baseUrl;
 
@@ -132,7 +142,8 @@
 
     var url = baseUrl + '/embed/verify?userId=' + encodeURIComponent(userId) +
       '&appName=' + encodeURIComponent(appName) +
-      '&returnUrl=' + encodeURIComponent(returnUrl);
+      '&returnUrl=' + encodeURIComponent(returnUrl) +
+      (onboardingToken ? '&onboardingToken=' + encodeURIComponent(onboardingToken) : '');
 
     window.location.href = url;
   }

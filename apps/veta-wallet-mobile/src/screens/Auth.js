@@ -34,9 +34,9 @@ export default function Auth({ nav }) {
         toast(`Bienvenido, ${data.user.fullName || data.user.email}`);
         nav.go('home');
       } else {
-        await api.register({ email: email.trim(), password, fullName: fullName.trim() });
+        const data = await api.register({ email: email.trim(), password, fullName: fullName.trim() });
         toast('Cuenta creada. Verifica tu identidad para continuar.');
-        nav.go('kyc');
+        nav.go('kyc', { userId: data.userId, onboardingToken: data.onboardingToken });
       }
     } catch (e) {
       setError(e.message);

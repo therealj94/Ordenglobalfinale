@@ -8,14 +8,30 @@ import KYCFlow from '@/components/KYCFlow';
  * (Veta Wallet, My Token Pay, etc.) via the genesis-kyc-sdk widget.
  *
  * Query params:
- *   userId    - required, the GENESIS ID user completing verification
- *   appName   - required, identifies which app initiated the flow
- *   returnUrl - optional, if present the page will do a full redirect instead
- *               of posting a message (used for non-iframe / full-page flows)
+ *   userId          - required, the GENESIS ID user completing verification
+ *   appName         - required, identifies which app initiated the flow
+ *   onboardingToken - required unless the browser already holds a GENESIS ID
+ *                     session for this user (e.g. a native app embedding this
+ *                     page has never logged into genesisid.online directly,
+ *                     so it has no other way to authenticate the KYC calls)
+ *   returnUrl       - optional, if present the page will do a full redirect
+ *                     instead of posting a message (used for non-iframe /
+ *                     full-page flows, including deep-linking back into a
+ *                     native app via a custom URL scheme)
  */
 export default function EmbedVerifyPage() {
   const router = useRouter();
-  const { userId, appName, returnUrl } = router.query;
+  const { userId, appName, returnUrl, onboardingToken } = router.query;
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    // apiClient reads its Authorization token from this key — this is the
+    // only session GENESIS ID's own browser storage has for a user who
+    // registered through an external app rather than genesisid.online.
+    if (typeof onboardingToken === 'string' && onboardingToken) {
+      localStorage.setItem('accessToken', onboardingToken);
+    }
+  }, [router.isReady, onboardingToken]);
 
   const postToParent = (payload: Record<string, any>) => {
     const message = { source: 'genesis-kyc-sdk', ...payload };
