@@ -9,7 +9,10 @@ export const API_BASE_URL = process.env.EXPO_PUBLIC_GENESIS_API_URL || 'https://
 // GENESIS ID's hosted web app — used only to launch its embedded KYC flow
 // (facial + document capture, AML form, quality checks), which the app
 // receives as a service rather than reimplementing natively.
-export const GENESIS_APP_URL = process.env.EXPO_PUBLIC_GENESIS_APP_URL || 'https://genesisid.online';
+// Note: use the www host — the apex genesisid.online currently returns a TLS
+// "unrecognized_name" alert (ERR_SSL_UNRECOGNIZED_NAME_ALERT) on device
+// because its certificate isn't provisioned on Vercel; www serves a valid one.
+export const GENESIS_APP_URL = process.env.EXPO_PUBLIC_GENESIS_APP_URL || 'https://www.genesisid.online';
 
 const SESSION_KEY = 'veta_genesis_session';
 const APP_NAME = 'veta-wallet';
