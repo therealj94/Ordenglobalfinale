@@ -28,6 +28,16 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
 }
 
+// Repeating "GENESIS ID" micro-print, tiled diagonally — the same kind of
+// security-paper watermark real passports/ID documents use, built as an
+// inline SVG data URI so no image asset is needed.
+const WATERMARK_TILE = `data:image/svg+xml,${encodeURIComponent(`
+  <svg xmlns='http://www.w3.org/2000/svg' width='200' height='110'>
+    <text x='0' y='55' font-family='Arial, sans-serif' font-size='15' font-weight='700'
+      letter-spacing='1' fill='#1e3a8a' transform='rotate(-28 100 55)'>GENESIS ID</text>
+  </svg>
+`)}`;
+
 // Decorative, passport-style "machine readable zone" — NOT a real ICAO 9303
 // MRZ (no check digits, not meant to be scanned). Purely visual flavor to
 // match the passport-page aesthetic.
@@ -102,19 +112,6 @@ export default function GenesisIDCard({
         ref={cardRef}
         className="rounded-2xl overflow-hidden shadow-2xl border border-indigo-200 bg-white relative"
       >
-        {/* Security-paper watermark texture — runs the full height of the card */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.07]"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(115deg, #1e3a8a 0px, #1e3a8a 1px, transparent 1px, transparent 9px), repeating-linear-gradient(25deg, #1e3a8a 0px, #1e3a8a 1px, transparent 1px, transparent 9px)'
-          }}
-        />
-        {/* Large faded shield watermark, passport-style */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.05]">
-          <FiShield size={260} className="text-indigo-900" />
-        </div>
-
         {/* Header */}
         <div className="relative bg-gradient-to-r from-indigo-900 via-blue-900 to-indigo-950 px-5 py-4">
           <div className="flex items-center gap-2">
@@ -131,6 +128,24 @@ export default function GenesisIDCard({
 
         {/* Body — stacked vertically, passport-page style */}
         <div className="relative bg-gradient-to-b from-slate-50 to-white px-6 pt-6 pb-4 text-center">
+          {/* Security-paper watermark layers, scoped to the light "paper" area
+              so they don't wash out over the dark header/footer bars */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.07]"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(115deg, #1e3a8a 0px, #1e3a8a 1px, transparent 1px, transparent 9px), repeating-linear-gradient(25deg, #1e3a8a 0px, #1e3a8a 1px, transparent 1px, transparent 9px)'
+            }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.12]"
+            style={{ backgroundImage: `url("${WATERMARK_TILE}")`, backgroundRepeat: 'repeat' }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.08]">
+            <FiShield size={280} className="text-indigo-900" />
+          </div>
+
+          <div className="relative z-10">
           <p className="text-[10px] uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-4">
             Global Digital Identity
           </p>
@@ -190,6 +205,7 @@ export default function GenesisIDCard({
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* Passport-style machine-readable zone (decorative) */}
