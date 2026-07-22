@@ -173,66 +173,74 @@ export default function GenesisIDCard({
           {/* Engraved double-rule frame */}
           <div className="absolute inset-2 border-double border-4 border-amber-800/25 pointer-events-none rounded-sm" />
 
-          <div className="relative z-10">
-            <p className="font-serif text-[11px] uppercase tracking-[0.25em] text-amber-900/70 font-semibold mb-4">
-              Global Digital Identity
-            </p>
+          <div className="relative z-10 text-left">
+            {/* Photo (left) + fields (right) — passport bio-page arrangement */}
+            <div className="flex gap-4 items-start">
+              <div className="shrink-0 w-24 h-32 overflow-hidden bg-gray-200 border-2 border-[#4a3618]/40 shadow-md">
+                {idCardPhoto ? (
+                  <img src={idCardPhoto} alt={fullName} className="w-full h-full object-cover grayscale-[0.15] sepia-[0.15]" crossOrigin="anonymous" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-[10px] text-center px-1">
+                    No photo
+                  </div>
+                )}
+              </div>
 
-            {/* Photo */}
-            <div className="mx-auto w-32 h-40 overflow-hidden bg-gray-200 border-2 border-[#4a3618]/40 shadow-md mb-4">
-              {idCardPhoto ? (
-                <img src={idCardPhoto} alt={fullName} className="w-full h-full object-cover grayscale-[0.15] sepia-[0.15]" crossOrigin="anonymous" />
+              <div className="flex-1 min-w-0">
+                <p className="font-serif text-[11px] uppercase tracking-[0.15em] text-amber-900/70 font-semibold mb-2 leading-tight">
+                  Global Digital Identity
+                </p>
+
+                <p className="text-[9px] uppercase tracking-widest text-amber-900/60 font-semibold">Genesis ID Number</p>
+                <p className="font-mono font-bold text-base text-[#2b2013] tracking-wide mb-1.5 truncate">{gid}</p>
+
+                <p className="text-[9px] uppercase tracking-widest text-amber-900/60 font-semibold">Nationality</p>
+                <p className="text-[#3a2c18] text-sm mb-1.5">{countryName(nationality)}</p>
+
+                {showFullDetails && (
+                  <>
+                    <p className="text-[9px] uppercase tracking-widest text-amber-900/60 font-semibold">Date of Birth</p>
+                    <p className="text-[#3a2c18] text-sm mb-1.5">{formatDate(dateOfBirth)}</p>
+                  </>
+                )}
+
+                <p className="text-[9px] uppercase tracking-widest text-amber-900/60 font-semibold">Status</p>
+                <p className="text-emerald-800 font-bold text-xs flex items-center gap-1">
+                  VERIFIED <span className="text-amber-600">✓</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Full name gets its own full-width line — often too long to sit in the narrow column */}
+            <div className="mt-3">
+              <p className="text-[9px] uppercase tracking-widest text-amber-900/60 font-semibold">Full Name</p>
+              <p className="font-serif font-semibold text-[#2b2013] text-lg truncate">{fullName}</p>
+            </div>
+
+            {/* Bottom row: issue/expiry dates (left) + QR (right) — like the reference layout */}
+            <div className="flex justify-between items-end mt-4 pt-3 border-t border-amber-800/25">
+              {showFullDetails ? (
+                <div className="flex gap-5">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-amber-900/60 font-semibold">Issued</p>
+                    <p className="text-[#3a2c18] text-xs">{formatDate(issuedAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-amber-900/60 font-semibold">Valid Until</p>
+                    <p className="text-[#3a2c18] text-xs">{formatDate(expiresAt)}</p>
+                  </div>
+                </div>
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs text-center px-2">
-                  No photo
+                <div />
+              )}
+
+              {qrDataUrl && (
+                <div className="flex flex-col items-center">
+                  <img src={qrDataUrl} alt="Scan to verify" className="w-20 h-20" />
+                  <p className="text-[7px] uppercase tracking-wider text-amber-900/50 mt-0.5">Scan to verify</p>
                 </div>
               )}
             </div>
-
-            {/* Fields — stacked, left-aligned inside a centered block */}
-            <div className="inline-block text-left w-full max-w-[240px]">
-              <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Global Identity Number</p>
-              <p className="font-mono font-bold text-lg text-[#2b2013] tracking-wide mb-2 truncate">{gid}</p>
-
-              <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Full Name</p>
-              <p className="font-serif font-semibold text-[#2b2013] text-lg mb-2 truncate">{fullName}</p>
-
-              <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Nationality</p>
-              <p className="text-[#3a2c18] text-sm mb-2">{countryName(nationality)}</p>
-
-              {showFullDetails && (
-                <>
-                  <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Date of Birth</p>
-                  <p className="text-[#3a2c18] text-sm mb-2">{formatDate(dateOfBirth)}</p>
-                </>
-              )}
-
-              <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Status</p>
-              <p className="text-emerald-800 font-bold text-sm flex items-center gap-1">
-                VERIFIED MEMBER <span className="text-amber-600">✓</span>
-              </p>
-            </div>
-
-            {/* QR */}
-            {qrDataUrl && (
-              <div className="flex flex-col items-center mt-4">
-                <img src={qrDataUrl} alt="Scan to verify" className="w-28 h-28" />
-                <p className="text-[8px] uppercase tracking-wider text-amber-900/50 mt-1">Scan to verify</p>
-              </div>
-            )}
-
-            {showFullDetails && (
-              <div className="flex justify-between mt-5 pt-4 border-t border-amber-800/25 text-xs max-w-[240px] mx-auto">
-                <div className="text-left">
-                  <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Issued</p>
-                  <p className="text-[#3a2c18]">{formatDate(issuedAt)}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-widest text-amber-900/60 font-semibold">Valid Until</p>
-                  <p className="text-[#3a2c18]">{formatDate(expiresAt)}</p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
