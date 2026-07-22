@@ -14,7 +14,7 @@ function randomLetter() {
 
 /**
  * Builds one GID candidate: GID-<2 digits><letter><3 digits>-<country alpha-3>
- * e.g. GID-85m856-hnd for a Honduran user.
+ * e.g. GID-85m856-HND for a Honduran user.
  */
 function buildCandidate(nationality) {
   const digits = [randomDigit(), randomDigit(), randomDigit(), randomDigit(), randomDigit()];

@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import Layout from '@/components/Layout';
 import toast from 'react-hot-toast';
-import { FiMail, FiLock, FiLoader } from 'react-icons/fi';
+import { FiMail, FiLoader } from 'react-icons/fi';
+import PasswordInput from '@/components/PasswordInput';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -61,17 +62,13 @@ export default function LoginPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                <div className="relative">
-                  <FiLock className="absolute left-3 top-3 text-gray-400" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Your password"
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
+                <PasswordInput
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Your password"
+                  autoComplete="current-password"
+                  required
+                />
               </div>
 
               <div className="text-right">

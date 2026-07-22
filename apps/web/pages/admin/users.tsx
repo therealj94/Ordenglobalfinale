@@ -247,6 +247,7 @@ export default function AdminUsersPage() {
                   dateOfBirth={cardUser.dateOfBirth}
                   issuedAt={cardUser.gidIssuedAt}
                   expiresAt={cardUser.gidExpiresAt}
+                  allowDownload
                 />
               ) : (
                 <div className="bg-white rounded-2xl p-10 text-center">

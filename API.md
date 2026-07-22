@@ -218,7 +218,7 @@ Authorization: Bearer <onboardingToken or accessToken>
   "reviewMode": "automatic",
   "verifiedAt": "2026-07-22T03:00:00Z",
   "rejectionReason": null,
-  "gid": "GID-85m856-hnd"
+  "gid": "GID-85m856-HND"
 }
 ```
 
@@ -259,7 +259,7 @@ GET /public/gid/:gid
 **Response:**
 ```json
 {
-  "gid": "GID-85m856-hnd",
+  "gid": "GID-85m856-HND",
   "fullName": "John Doe",
   "nationality": "HN",
   "idCardPhoto": "data:image/jpeg;base64,...",
@@ -287,7 +287,7 @@ X-API-Key: gid_live_xxxxxxxxxxxxxxxxxxxx
 { "userId": "user-uuid", "appName": "veta-wallet" }
 ```
 ```json
-{ "gid": "GID-85m856-hnd", "appName": "veta-wallet" }
+{ "gid": "GID-85m856-HND", "appName": "veta-wallet" }
 ```
 
 **Response:**
@@ -298,7 +298,7 @@ X-API-Key: gid_live_xxxxxxxxxxxxxxxxxxxx
   "userStatus": "verified",
   "isLinked": true,
   "userId": "user-uuid",
-  "gid": "GID-85m856-hnd",
+  "gid": "GID-85m856-HND",
   "email": "user@example.com",
   "fullName": "John Doe"
 }

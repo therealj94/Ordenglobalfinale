@@ -1,6 +1,6 @@
 // ISO 3166-1 alpha-2 -> alpha-3 mapping, matching the country list used in
 // the AML form (apps/web/lib/countries.ts). Used to build the GID country
-// suffix (e.g. Honduras: HN -> hnd).
+// suffix (e.g. Honduras: HN -> HND).
 const ALPHA2_TO_ALPHA3 = {
   AF: 'AFG', AL: 'ALB', DZ: 'DZA', AR: 'ARG', AU: 'AUS', AT: 'AUT',
   BS: 'BHS', BH: 'BHR', BD: 'BGD', BB: 'BRB', BE: 'BEL', BZ: 'BLZ',
@@ -19,8 +19,8 @@ const ALPHA2_TO_ALPHA3 = {
 };
 
 function toAlpha3(alpha2) {
-  if (!alpha2) return 'unk';
-  return (ALPHA2_TO_ALPHA3[alpha2.toUpperCase()] || 'unk').toLowerCase();
+  if (!alpha2) return 'UNK';
+  return (ALPHA2_TO_ALPHA3[alpha2.toUpperCase()] || 'UNK').toUpperCase();
 }
 
 module.exports = { ALPHA2_TO_ALPHA3, toAlpha3 };

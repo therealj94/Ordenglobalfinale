@@ -3,6 +3,7 @@ const { User, LoginToken } = require('../models');
 const JWTService = require('../services/JWTService');
 const PasswordService = require('../services/PasswordService');
 const EmailService = require('../services/EmailService');
+const { toTitleCase } = require('../utils/textUtils');
 
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -25,7 +26,7 @@ class AuthController {
       const user = await User.create({
         email: email.toLowerCase(),
         password: hashedPassword,
-        fullName,
+        fullName: fullName ? toTitleCase(fullName) : fullName,
         phone,
         status: 'pending'
       });

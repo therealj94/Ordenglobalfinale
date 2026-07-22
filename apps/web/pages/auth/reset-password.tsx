@@ -4,7 +4,8 @@ import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { apiClient } from '@/lib/apiClient';
 import toast from 'react-hot-toast';
-import { FiLock, FiLoader, FiCheckCircle } from 'react-icons/fi';
+import { FiLoader, FiCheckCircle } from 'react-icons/fi';
+import PasswordInput from '@/components/PasswordInput';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -70,32 +71,24 @@ export default function ResetPasswordPage() {
               <form onSubmit={handleSubmit} className="px-6 py-8 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
-                  <div className="relative">
-                    <FiLock className="absolute left-3 top-3 text-gray-400" />
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Minimum 8 characters"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
+                  <PasswordInput
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Minimum 8 characters"
+                    autoComplete="new-password"
+                    required
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
-                  <div className="relative">
-                    <FiLock className="absolute left-3 top-3 text-gray-400" />
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Repeat your password"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
+                  <PasswordInput
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat your password"
+                    autoComplete="new-password"
+                    required
+                  />
                 </div>
 
                 <button

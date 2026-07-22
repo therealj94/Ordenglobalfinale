@@ -13,7 +13,7 @@ pipeline works today (manual review) and how it's designed to grow (automated
 in-house checks later, without breaking the API).
 
 Once verified, users get a permanent **GENESIS ID (GID)** — e.g.
-`GID-85m856-hnd` — plus JWT-based SSO across every connected Orden Global app.
+`GID-85m856-HND` — plus JWT-based SSO across every connected Orden Global app.
 
 ## ✨ Key Features
 

@@ -146,6 +146,7 @@ export default function DashboardPage() {
                 dateOfBirth={user.dateOfBirth}
                 issuedAt={user.gidIssuedAt}
                 expiresAt={user.gidExpiresAt}
+                allowDownload
               />
             ) : (
               <div className="bg-white rounded-xl shadow p-8 text-center">
