@@ -4,9 +4,13 @@ const JWTService = require('../services/JWTService');
 class AppController {
   async userStatus(req, res, next) {
     try {
-      const { userId, appName } = req.body;
+      const { userId, gid, appName } = req.body;
 
-      const user = await User.findByPk(userId);
+      if (!userId && !gid) {
+        return res.status(400).json({ error: 'userId or gid is required' });
+      }
+
+      const user = userId ? await User.findByPk(userId) : await User.findOne({ where: { gid } });
       if (!user) {
         return res.status(404).json({
           exists: false,
@@ -15,7 +19,7 @@ class AppController {
       }
 
       const appReg = await AppRegistration.findOne({
-        where: { userId, appName }
+        where: { userId: user.id, appName }
       });
 
       res.json({
@@ -23,6 +27,8 @@ class AppController {
         verified: user.status === 'verified',
         userStatus: user.status,
         isLinked: !!appReg,
+        userId: user.id,
+        gid: user.gid,
         email: user.email,
         fullName: user.fullName
       });

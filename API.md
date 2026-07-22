@@ -121,22 +121,50 @@ Authorization: Bearer <onboardingToken or accessToken>
   "documentFrontImage": "data:image/jpeg;base64,...",
   "documentBackImage": "data:image/jpeg;base64,...",
   "selfieImages": ["data:image/jpeg;base64,...", "..."],
-  "livenessResult": { "anglesCaptured": 5, "method": "guided-rotation" }
+  "livenessResult": { "anglesCaptured": 5, "method": "guided-rotation" },
+  "amlInfo": {
+    "dateOfBirth": "1990-05-15",
+    "nationality": "HN",
+    "countryOfResidence": "HN",
+    "occupation": "Engineer",
+    "sourceOfFunds": "salary",
+    "isPEP": false
+  }
 }
 ```
 
-`documentBackImage` is required for `ID_CARD` and `DRIVERS_LICENSE`, not for `PASSPORT`. At least 3 `selfieImages` are required.
+`documentBackImage` is required for `ID_CARD` and `DRIVERS_LICENSE`, not for `PASSPORT`. At least 3 `selfieImages` are required. `amlInfo` is required; `pepDetails` is required when `isPEP` is `true`. `nationality`/`countryOfResidence` are ISO 3166-1 alpha-2 codes.
 
-**Response:**
+**Response — auto-approved** (passed the quality gate, not PEP):
 ```json
 {
-  "message": "KYC submitted successfully, pending review",
+  "message": "Verification approved automatically",
+  "verificationId": "verification-uuid",
+  "status": "approved",
+  "gid": "GID-85m856-hnd"
+}
+```
+
+**Response — quality check failed, retry available** (`400`):
+```json
+{
+  "error": "Some of your photos did not pass our quality check. Please retry.",
+  "details": ["Selfie 2: image too dark"],
+  "attemptNumber": 1,
+  "attemptsRemaining": 2
+}
+```
+
+**Response — pending manual review** (PEP declared, or quality failed 3 times):
+```json
+{
+  "message": "KYC submitted successfully, pending manual review",
   "verificationId": "verification-uuid",
   "status": "pending"
 }
 ```
 
-This creates a `ManualReviewCase` that shows up in the admin panel at `/admin/reviews`.
+This creates a `ManualReviewCase` that shows up in the admin panel at `/admin/reviews`. See `VERIFICATION_ENGINE.md` for exactly what the automatic quality gate does and does not check.
 
 ### 2. Check KYC Status
 ```
@@ -148,10 +176,11 @@ Authorization: Bearer <onboardingToken or accessToken>
 ```json
 {
   "verificationId": "verification-uuid",
-  "status": "pending",
-  "reviewMode": "manual",
-  "verifiedAt": null,
-  "rejectionReason": null
+  "status": "approved",
+  "reviewMode": "automatic",
+  "verifiedAt": "2026-07-22T03:00:00Z",
+  "rejectionReason": null,
+  "gid": "GID-85m856-hnd"
 }
 ```
 
@@ -167,9 +196,12 @@ POST /apps/user-status
 X-API-Key: gid_live_xxxxxxxxxxxxxxxxxxxx
 ```
 
-**Request:**
+**Request:** (send either `userId` or `gid`)
 ```json
 { "userId": "user-uuid", "appName": "veta-wallet" }
+```
+```json
+{ "gid": "GID-85m856-hnd", "appName": "veta-wallet" }
 ```
 
 **Response:**
@@ -179,6 +211,8 @@ X-API-Key: gid_live_xxxxxxxxxxxxxxxxxxxx
   "verified": true,
   "userStatus": "verified",
   "isLinked": true,
+  "userId": "user-uuid",
+  "gid": "GID-85m856-hnd",
   "email": "user@example.com",
   "fullName": "John Doe"
 }

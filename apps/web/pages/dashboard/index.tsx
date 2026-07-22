@@ -4,13 +4,16 @@ import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/apiClient';
+import toast from 'react-hot-toast';
 import {
   FiCheckCircle,
   FiClock,
   FiXCircle,
   FiLoader,
   FiShield,
-  FiGrid
+  FiGrid,
+  FiCopy,
+  FiHash
 } from 'react-icons/fi';
 
 const STATUS_CONFIG: Record<string, { color: string; icon: any; label: string }> = {
@@ -96,6 +99,34 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* GENESIS ID Card */}
+        {user.status === 'verified' && user.gid && (
+          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl shadow p-8 mb-8 text-white">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <div className="flex items-center text-indigo-100 mb-1">
+                  <FiHash className="mr-1" />
+                  <p className="text-sm">Your GENESIS ID</p>
+                </div>
+                <p className="text-3xl font-mono font-bold tracking-wide">{user.gid}</p>
+                <p className="text-indigo-100 text-sm mt-2">
+                  Use this ID across every Orden Global app — Veta Wallet, My Token Pay, and more.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(user.gid || '');
+                  toast.success('GENESIS ID copied to clipboard');
+                }}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 transition rounded-lg px-4 py-2 flex items-center font-semibold"
+              >
+                <FiCopy className="mr-2" />
+                Copy
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Ecosystem Access */}
         <div className="bg-white rounded-xl shadow p-8">

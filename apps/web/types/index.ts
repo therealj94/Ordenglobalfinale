@@ -6,6 +6,7 @@ export interface User {
   phone?: string;
   status: 'pending' | 'verified' | 'rejected' | 'expired';
   role?: 'user' | 'admin';
+  gid?: string | null;
   createdAt: string;
   lastLogin?: string;
 }

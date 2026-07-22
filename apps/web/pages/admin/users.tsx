@@ -118,6 +118,7 @@ export default function AdminUsersPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-600 uppercase">User</th>
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-600 uppercase">GENESIS ID</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-600 uppercase">Status</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-600 uppercase">Phone</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-600 uppercase">Registered</th>
@@ -131,6 +132,7 @@ export default function AdminUsersPage() {
                         <p className="font-medium text-gray-900">{user.fullName || '—'}</p>
                         <p className="text-sm text-gray-500">{user.email}</p>
                       </td>
+                      <td className="px-6 py-4 text-sm font-mono text-gray-700">{user.gid || '—'}</td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${

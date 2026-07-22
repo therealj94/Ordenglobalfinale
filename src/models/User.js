@@ -44,6 +44,18 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true
     },
+    // GENESIS ID — the permanent cross-ecosystem identifier assigned once
+    // verified: GID-<5 digits + 1 letter>-<nationality alpha-3>
+    gid: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true
+    },
+    kycAttemptCount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
     status: {
       type: DataTypes.ENUM('pending', 'verified', 'rejected', 'expired'),
       defaultValue: 'pending'

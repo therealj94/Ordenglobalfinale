@@ -1,7 +1,11 @@
 const { v4: uuidv4 } = require('uuid');
 const { User, Verification, ManualReviewCase } = require('../models');
+const { checkSubmissionQuality } = require('../services/ImageQualityService');
+const { assignGIDIfMissing } = require('../services/GIDService');
+const EmailService = require('../services/EmailService');
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024; // ~8MB base64 payload guard per image
+const MAX_ATTEMPTS_BEFORE_FORCED_MANUAL = 3;
 
 const VALID_SOURCE_OF_FUNDS = [
   'salary',
@@ -100,10 +104,35 @@ class KYCController {
         occupation
       });
 
+      // Every submission attempt counts, pass or fail — this is what drives
+      // the "force to manual review after 3 attempts" fallback below.
+      const attemptNumber = user.kycAttemptCount + 1;
+      await user.update({ kycAttemptCount: attemptNumber });
+
+      // Automatic QUALITY gate only (resolution / brightness / blank-image
+      // detection) — NOT a document authenticity or face-match check. See
+      // VERIFICATION_ENGINE.md for the full disclosure on what this does
+      // and doesn't verify.
+      const quality = await checkSubmissionQuality({ documentFrontImage, documentBackImage, selfieImages });
+      const attemptsExhausted = attemptNumber >= MAX_ATTEMPTS_BEFORE_FORCED_MANUAL;
+
+      if (!quality.pass && !attemptsExhausted) {
+        return res.status(400).json({
+          error: 'Some of your photos did not pass our quality check. Please retry.',
+          details: quality.failures,
+          attemptNumber,
+          attemptsRemaining: MAX_ATTEMPTS_BEFORE_FORCED_MANUAL - attemptNumber
+        });
+      }
+
+      // PEP cases always require a human's enhanced due diligence review —
+      // never auto-approved regardless of image quality.
+      const autoApprove = quality.pass && !isPEP;
+
       const verification = await Verification.create({
         userId: user.id,
         sessionId: uuidv4(),
-        status: 'pending',
+        status: autoApprove ? 'approved' : 'pending',
         documentType,
         documentCountry: documentCountry || null,
         documentFrontImage,
@@ -113,21 +142,39 @@ class KYCController {
         sourceOfFunds,
         isPEP,
         pepDetails: isPEP ? pepDetails : null,
-        reviewMode: 'manual',
+        reviewMode: autoApprove ? 'automatic' : 'manual',
+        verifiedAt: autoApprove ? new Date() : null,
+        rawData: autoApprove ? null : { qualityFailures: quality.failures, attemptNumber },
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
       });
 
+      if (autoApprove) {
+        const gid = await assignGIDIfMissing(user, User);
+        await user.update({ status: 'verified' });
+        EmailService.sendVerificationApproved(user).catch(() => {});
+
+        return res.status(201).json({
+          message: 'Verification approved automatically',
+          verificationId: verification.id,
+          status: 'approved',
+          gid
+        });
+      }
+
+      // Failed quality after 3 attempts (or PEP always gets a human look,
+      // handled separately) — hand off to manual review instead of leaving
+      // the user stuck.
       await ManualReviewCase.create({
         verificationId: verification.id,
         userId: user.id,
         reason: isPEP
-          ? 'New KYC submission pending manual review (PEP declared — requires enhanced due diligence)'
-          : 'New KYC submission pending manual review',
+          ? 'PEP declared — requires enhanced due diligence'
+          : `Automatic quality checks failed after ${attemptNumber} attempts — needs manual review`,
         status: 'pending'
       });
 
       res.status(201).json({
-        message: 'KYC submitted successfully, pending review',
+        message: 'KYC submitted successfully, pending manual review',
         verificationId: verification.id,
         status: 'pending'
       });
@@ -151,12 +198,15 @@ class KYCController {
         return res.status(404).json({ status: 'not_found' });
       }
 
+      const user = await User.findByPk(userId, { attributes: ['gid'] });
+
       res.json({
         verificationId: verification.id,
         status: verification.status,
         reviewMode: verification.reviewMode,
         verifiedAt: verification.verifiedAt,
-        rejectionReason: verification.rejectionReason
+        rejectionReason: verification.rejectionReason,
+        gid: user?.gid || null
       });
     } catch (error) {
       console.error('Get KYC status error:', error);

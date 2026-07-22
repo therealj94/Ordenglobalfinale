@@ -10,7 +10,8 @@ const router = express.Router();
 router.use(appAuthMiddleware);
 
 router.post('/user-status', [
-  body('userId').isUUID(),
+  body('userId').optional().isUUID(),
+  body('gid').optional().isString(),
   body('appName').notEmpty()
 ], handleValidationErrors, AppController.userStatus);
 

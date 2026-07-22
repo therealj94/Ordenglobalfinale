@@ -2,6 +2,7 @@ const { User, Verification, AppRegistration, AdminLog, ManualReviewCase, Connect
 const { Op } = require('sequelize');
 const crypto = require('crypto');
 const EmailService = require('../services/EmailService');
+const { assignGIDIfMissing } = require('../services/GIDService');
 
 function generateApiKey() {
   return `gid_live_${crypto.randomBytes(24).toString('hex')}`;
@@ -201,6 +202,11 @@ class AdminController {
         { where: { id: reviewCase.verificationId } }
       );
 
+      let gid = reviewCase.user?.gid || null;
+      if (reviewCase.user) {
+        gid = await assignGIDIfMissing(reviewCase.user, User);
+      }
+
       await User.update(
         { status: 'verified' },
         { where: { id: reviewCase.userId } }
@@ -213,14 +219,14 @@ class AdminController {
         description: `Manual review case ${caseId} approved`,
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
-        metadata: { caseId, notes }
+        metadata: { caseId, notes, gid }
       });
 
       if (reviewCase.user) {
         EmailService.sendVerificationApproved(reviewCase.user).catch(() => {});
       }
 
-      res.json({ message: 'Verification approved', caseId });
+      res.json({ message: 'Verification approved', caseId, gid });
     } catch (error) {
       console.error('Approve review error:', error);
       res.status(500).json({ error: 'Failed to approve verification' });

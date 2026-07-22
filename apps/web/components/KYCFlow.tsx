@@ -28,6 +28,7 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
   const [amlInfo, setAmlInfo] = useState<AMLInfo | null>(null);
   const [selfieImages, setSelfieImages] = useState<string[]>([]);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  const [gid, setGid] = useState<string | null>(null);
 
   const steps = ['Start', 'Compliance Info', 'Facial Verification', 'Document Scan', 'Review', 'Completed'];
   const currentStepIndex = ['info', 'aml', 'facial', 'document', 'submitting', 'completed'].indexOf(
@@ -58,7 +59,7 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
 
     setStep('submitting');
     try {
-      await submitKYC({
+      const submitResult: any = await submitKYC({
         userId,
         documentType: result.documentType,
         documentFrontImage: result.frontImage,
@@ -68,11 +69,20 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
         amlInfo
       });
 
+      if (submitResult?.status === 'approved') {
+        setGid(submitResult.gid || null);
+        setStep('completed');
+        onSuccess?.(submitResult);
+        onStatusChange?.('approved', submitResult);
+        return;
+      }
+
       toast.success('Submitted! Your verification is being reviewed.');
 
       // Poll briefly in case a fast automatic decision comes back
       const status = await getKYCStatus(userId);
       if (status.status === 'approved') {
+        setGid((status as any).gid || null);
         setStep('completed');
         onSuccess?.(status);
         onStatusChange?.('approved', status);
@@ -84,8 +94,22 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
         setStep('review');
         onStatusChange?.('pending', status);
       }
-    } catch (error) {
-      toast.error('Failed to submit verification');
+    } catch (error: any) {
+      const details = error?.response?.data?.details;
+      const attemptsRemaining = error?.response?.data?.attemptsRemaining;
+
+      if (Array.isArray(details) && details.length > 0) {
+        toast.error(
+          attemptsRemaining > 0
+            ? `Some photos didn't pass quality check: ${details[0]}. ${attemptsRemaining} attempt(s) left before manual review.`
+            : `Some photos didn't pass quality check: ${details[0]}`
+        );
+        setSelfieImages([]);
+        setStep('facial');
+        return;
+      }
+
+      toast.error(error?.response?.data?.error || 'Failed to submit verification');
       setStep('failed');
     }
   };
@@ -281,9 +305,16 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
               </div>
 
               <h2 className="text-4xl font-bold text-gray-900 mb-3">Verification Approved! 🎉</h2>
-              <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
+              <p className="text-gray-600 text-lg mb-6 max-w-md mx-auto">
                 Your identity has been verified successfully. You now have access to all Orden Global apps.
               </p>
+
+              {gid && (
+                <div className="bg-indigo-50 border-2 border-indigo-200 rounded-lg p-6 mb-8 max-w-md mx-auto">
+                  <p className="text-sm text-indigo-600 mb-1">Your GENESIS ID</p>
+                  <p className="text-2xl font-mono font-bold text-indigo-900">{gid}</p>
+                </div>
+              )}
 
               <button
                 onClick={() => router.push('/dashboard')}

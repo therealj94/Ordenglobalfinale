@@ -30,6 +30,14 @@ export interface KYCStatus {
   reviewMode: 'automatic' | 'manual';
   verifiedAt?: string;
   rejectionReason?: string;
+  gid?: string | null;
+}
+
+export interface KYCSubmitResponse {
+  message: string;
+  verificationId: string;
+  status: string;
+  gid?: string | null;
 }
 
 export const useVerification = () => {
@@ -41,10 +49,7 @@ export const useVerification = () => {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.post<{ verificationId: string; status: string }>(
-        '/kyc/submit',
-        data
-      );
+      const response = await apiClient.post<KYCSubmitResponse>('/kyc/submit', data);
 
       return response.data;
     } catch (err: any) {

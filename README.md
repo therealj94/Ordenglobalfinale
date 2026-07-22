@@ -12,11 +12,14 @@ storage, and review all happen inside GENESIS ID itself. See
 pipeline works today (manual review) and how it's designed to grow (automated
 in-house checks later, without breaking the API).
 
-Once verified, users get JWT-based SSO across every connected Orden Global app.
+Once verified, users get a permanent **GENESIS ID (GID)** — e.g.
+`GID-85m856-hnd` — plus JWT-based SSO across every connected Orden Global app.
 
 ## ✨ Key Features
 
 - **In-house facial + document verification** — no external verification API
+- **GENESIS ID (GID)**: permanent cross-ecosystem identifier assigned on approval, format `GID-<5 digits + letter>-<nationality alpha-3>`
+- **Automatic quality gate**: clear photos get approved instantly (with a documented, honest scope — see VERIFICATION_ENGINE.md); anything unclear after 3 attempts goes to manual review
 - **Central SSO**: Single Sign-On across all Orden Global applications
 - **JWT Authentication**: Secure, stateless token-based authentication
 - **Admin Dashboard**: Full web UI — users, verifications with document viewer, manual review queue, reports, connected-app API keys

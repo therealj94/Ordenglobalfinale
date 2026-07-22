@@ -75,7 +75,8 @@ class AuthController {
           email: user.email,
           fullName: user.fullName,
           status: user.status,
-          role: user.role
+          role: user.role,
+          gid: user.gid
         }
       });
     } catch (error) {

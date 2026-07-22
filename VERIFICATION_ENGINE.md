@@ -11,46 +11,93 @@ built and owned end-to-end.
 | Facial liveness capture | Live camera, 5 head positions (straight, left, right, up, down), **auto-captured** via real-time head-pose estimation (MediaPipe FaceLandmarker, self-hosted, runs entirely in-browser) — `apps/web/components/FacialCapture.tsx`, angle math in `apps/web/lib/facePose.ts` |
 | Document capture | Front + back capture for ID cards / driver's licenses, single photo-page capture for passports — `apps/web/components/DocumentCapture.tsx` |
 | AML / KYC declaration | Date of birth, nationality, country of residence, occupation, source of funds, and PEP (Politically Exposed Person) status — `apps/web/components/AMLForm.tsx` |
-| Storage | Captured images on the `Verification` record; AML fields split between `User` (profile: DOB, nationality, residence, occupation) and `Verification` (declared per-submission: source of funds, PEP) |
-| Decision | Manual review by a human admin today (`reviewMode: 'manual'`); the `rawData`/`livenessResult` JSONB fields exist so an in-house automated check can plug in later without a schema change |
+| Automatic decision | Image **quality** gate (resolution / brightness / blank-image detection) — see below | 
+| GENESIS ID (GID) | Permanent cross-ecosystem identifier assigned on approval — see below |
 | Review UI | `/admin/reviews` — admins see the submitted photos and full AML declaration (PEP cases are flagged), add notes, and approve/reject |
 
-## Why manual review (for now)
+## ⚠️ What "automatic approval" actually checks (read this before trusting it)
 
-Automatic pass/fail decisions require document-authenticity checks (hologram/MRZ
-validation, tamper detection) and liveness/anti-spoofing scoring — real
-computer-vision work. Rather than fake that with a stubbed "always approve"
-switch, GENESIS ID ships with **honest manual review**: every submission goes
-to a human admin, who sees the actual captured photos before deciding.
+`src/services/ImageQualityService.js` runs on every submission and checks:
+resolution, brightness (not too dark/blown out), and pixel variance (not a
+blank/uniform capture). **That is all it checks.**
 
-This is a deliberate, incremental path:
+It does **not**:
+- Verify the document is authentic (no hologram/MRZ/security-feature checks)
+- Confirm the selfie is the same person as the document photo
+- Detect a photo-of-a-photo, a printed mask, or other spoofing
+- Read or validate any text on the document (no OCR)
 
-1. **Today**: manual review only (`reviewMode: 'manual'`).
-2. **Later**: plug in an in-house or licensed document/liveness analysis
-   step inside `KYCController.submitKYC` (`src/controllers/KYCController.js`).
-   When a verification's automated confidence is high, mark
-   `reviewMode: 'automatic'` and set `status` directly; otherwise fall back to
-   the same manual queue that already exists. No API or frontend changes are
-   needed to add this — the review queue and manual-approval flow keep
-   working as the fallback.
+So "automatic approval" here means **"the photos are clear enough to look
+at"**, not **"this is a confirmed, non-fraudulent identity."** A bad actor
+who submits clear photos of a stolen or fake document will pass this gate.
+
+This was a deliberate choice, made with that risk disclosed and accepted —
+if you plan to move real money against these approvals, budget for adding
+real document-authenticity and face-match checks (in-house computer vision,
+or a licensed provider) before scaling past a pilot. The hook point is
+`KYCController.submitKYC` (`src/controllers/KYCController.js`) — swap the
+quality gate for a real check without touching the API or frontend; the
+manual-review path already exists as the fallback.
+
+## Automatic decision flow
+
+1. User submits (facial + document + AML declaration).
+2. **PEP declared → always manual.** No quality score overrides this —
+   enhanced due diligence requires a human, by design.
+3. Otherwise, run the quality gate:
+   - **Pass** → `status: 'approved'`, `reviewMode: 'automatic'`, GID assigned
+     immediately, user can log in right away.
+   - **Fail, attempt < 3** → HTTP 400 with the specific failure reasons
+     (e.g. "Selfie 2: image too dark"), user retakes photos immediately.
+     Tracked via `User.kycAttemptCount`.
+   - **Fail, attempt ≥ 3** → instead of blocking the user forever, it's
+     handed to the manual review queue (`ManualReviewCase`, reason:
+     "Automatic quality checks failed after 3 attempts") so a human looks
+     at *why* — could be a genuinely hard camera/lighting situation, not
+     necessarily fraud.
+4. Manual approval (by an admin) also assigns a GID if the user doesn't
+   have one yet — same code path either way (`GIDService.assignGIDIfMissing`).
+
+## GENESIS ID (GID)
+
+Format: `GID-<5 digits with a letter inserted in the middle>-<nationality, ISO 3166-1 alpha-3, lowercase>`
+
+Example: `GID-85m856-hnd` — a user whose declared nationality is Honduras.
+
+- Generated by `src/services/GIDService.js`, assigned exactly once (on
+  first approval — automatic or manual), stored on `User.gid`, unique in
+  the database (collision-checked with retry).
+- Country suffix comes from the AML form's **nationality** field
+  (`src/data/countries.js` maps the alpha-2 codes used in the form to
+  alpha-3 for the suffix).
+- This is the identifier ecosystem apps (Veta Wallet, My Token Pay, etc.)
+  should treat as "the" GENESIS ID — `POST /api/apps/user-status` accepts
+  either the internal `userId` (UUID) or `gid` to look up a user.
+- Shown to the user on `/dashboard` (with copy-to-clipboard) and to admins
+  in `/admin/users`.
 
 ## Data model
 
 `Verification` (`src/models/Verification.js`):
-- `sessionId` — GENESIS ID's own verification session identifier (was
-  previously tied to Veriff's session id; now fully internal)
+- `sessionId` — GENESIS ID's own verification session identifier
 - `documentType`, `documentCountry`, `documentNumber`
 - `documentFrontImage`, `documentBackImage` — base64 captures
 - `selfieImages` — array of the 5 rotation-angle captures
-- `livenessResult` — reserved for a future automated liveness score
+- `livenessResult` — head-pose/capture metadata from the frontend
 - `sourceOfFunds`, `isPEP`, `pepDetails` — AML declaration for this submission
-- `reviewMode` — `'manual'` today, `'automatic'` once an in-house/licensed
-  automated check is wired in
+- `reviewMode` — `'automatic'` (passed the quality gate) or `'manual'`
+- `rawData` — for non-auto-approved submissions, stores which quality
+  checks failed and on which attempt
 - `status`, `verifiedAt`, `rejectionReason`
 
-`User` (`src/models/User.js`) also carries persistent KYC profile fields set
-on first submission: `dateOfBirth`, `nationality`, `countryOfResidence`,
-`occupation`.
+`User` (`src/models/User.js`) also carries:
+- Persistent KYC profile: `dateOfBirth`, `nationality`, `countryOfResidence`, `occupation`
+- `gid` — assigned on approval, unique
+- `kycAttemptCount` — total submission attempts, drives the 3-attempt manual fallback
+
+`ManualReviewCase` (`src/models/ManualReviewCase.js`) — one row per
+verification pending human review; tracks who reviewed it, when, and their
+notes.
 
 ### Head-pose detection
 
@@ -63,10 +110,6 @@ hardware. `FacialCapture.tsx` shows a live yaw/pitch debug readout in
 development mode to make tuning easy, and always offers a manual "Capture
 Anyway" fallback after ~9 seconds so detection issues never block a user.
 
-`ManualReviewCase` (`src/models/ManualReviewCase.js`) — one row per
-verification pending human review; tracks who reviewed it, when, and their
-notes.
-
 ## Ecosystem integration
 
 Veta Wallet, My Token Pay, and any other Orden Global app never talk to a
@@ -74,8 +117,9 @@ third party either — they talk to GENESIS ID directly:
 
 - Frontend: `packages/kyc-sdk` (the `GenesisKYC.verify()` widget) opens
   GENESIS ID's own `/embed/verify` page — not an external verification site.
-- Backend: apps confirm status server-to-server via `/api/apps/user-status`,
-  authenticated with a GENESIS ID API key (see Admin → Settings).
+- Backend: apps confirm status server-to-server via `/api/apps/user-status`
+  (accepts `userId` or `gid`), authenticated with a GENESIS ID API key (see
+  Admin → Settings).
 
 See `API.md` for the full endpoint reference and `packages/kyc-sdk/README.md`
 for integration instructions.
