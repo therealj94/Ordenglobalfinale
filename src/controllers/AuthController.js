@@ -28,13 +28,38 @@ class AuthController {
       if (existingUser) {
         // The email belongs to a previously deactivated account. The unique
         // constraint on email means we can't create a second row for it —
-        // reactivate this one instead of blocking the new registration.
+        // reactivate this one as a genuinely fresh account instead of
+        // blocking the new registration. Everything tied to the old
+        // identity (verification status, GID, card photo/signature, KYC
+        // profile) is cleared so the person starts over from scratch, same
+        // as a brand-new signup would; only the row itself (and its old
+        // Verification/ManualReviewCase history, kept for audit purposes)
+        // is reused.
         await existingUser.update({
           password: hashedPassword,
           fullName: fullName ? toTitleCase(fullName) : fullName,
           phone,
-          isActive: true
+          isActive: true,
+          role: 'user',
+          status: 'pending',
+          gid: null,
+          gidIssuedAt: null,
+          gidExpiresAt: null,
+          idCardPhoto: null,
+          signature: null,
+          kycAttemptCount: 0,
+          dateOfBirth: null,
+          nationality: null,
+          countryOfResidence: null,
+          occupation: null,
+          passwordResetToken: null,
+          passwordResetExpires: null,
+          lastLogin: null
         });
+        await LoginToken.update(
+          { revokedAt: new Date() },
+          { where: { userId: existingUser.id, revokedAt: null } }
+        );
         user = existingUser;
       } else {
         user = await User.create({

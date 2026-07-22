@@ -9,6 +9,7 @@ export interface GenesisIDCardProps {
   gid: string;
   nationality?: string | null;
   idCardPhoto?: string | null;
+  signature?: string | null;
   dateOfBirth?: string | null;
   issuedAt?: string | null;
   expiresAt?: string | null;
@@ -93,6 +94,7 @@ export default function GenesisIDCard({
   gid,
   nationality,
   idCardPhoto,
+  signature,
   dateOfBirth,
   issuedAt,
   expiresAt,
@@ -241,6 +243,14 @@ export default function GenesisIDCard({
                 </div>
               )}
             </div>
+
+            {/* Signature — private detail, same visibility rule as DOB/dates (not on the public QR page) */}
+            {showFullDetails && signature && (
+              <div className="mt-4 pt-3 border-t border-amber-800/25">
+                <p className="text-[9px] uppercase tracking-widest text-amber-900/60 font-semibold mb-1">Holder&apos;s Signature</p>
+                <img src={signature} alt="Signature" className="h-14 object-contain" crossOrigin="anonymous" />
+              </div>
+            )}
           </div>
         </div>
 

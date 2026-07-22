@@ -7,6 +7,7 @@ import { apiClient } from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 import GenesisIDCard from '@/components/GenesisIDCard';
 import IdCardPhotoCapture from '@/components/IdCardPhotoCapture';
+import SignaturePad from '@/components/SignaturePad';
 import {
   FiCheckCircle,
   FiClock,
@@ -30,6 +31,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, setUser, fetchProfile, isAuthenticated } = useAuth();
   const [checking, setChecking] = useState(true);
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -62,9 +64,17 @@ export default function DashboardPage() {
   const statusInfo = STATUS_CONFIG[user.status] || STATUS_CONFIG.pending;
   const StatusIcon = statusInfo.icon;
 
-  const handleIdCardPhotoSubmit = async (photo: string) => {
-    await apiClient.post('/kyc/id-card-photo', { userId: user.id, photo });
-    setUser({ ...user, idCardPhoto: photo });
+  const handlePhotoCaptured = async (photo: string) => {
+    // Hold the photo locally and move on to the signature step — both get
+    // saved together in one request once the signature is drawn.
+    setPendingPhoto(photo);
+  };
+
+  const handleSignatureSubmit = async (signature: string) => {
+    if (!pendingPhoto) return;
+    await apiClient.post('/kyc/id-card-photo', { userId: user.id, photo: pendingPhoto, signature });
+    setUser({ ...user, idCardPhoto: pendingPhoto, signature });
+    setPendingPhoto(null);
     toast.success('Your GENESIS ID card is ready!');
   };
 
@@ -143,11 +153,20 @@ export default function DashboardPage() {
                 gid={user.gid}
                 nationality={user.nationality}
                 idCardPhoto={user.idCardPhoto}
+                signature={user.signature}
                 dateOfBirth={user.dateOfBirth}
                 issuedAt={user.gidIssuedAt}
                 expiresAt={user.gidExpiresAt}
                 allowDownload
               />
+            ) : pendingPhoto ? (
+              <div className="bg-white rounded-xl shadow p-8 text-center">
+                <h3 className="text-lg font-bold text-gray-900 mb-1">Now, sign your GENESIS ID</h3>
+                <p className="text-gray-600 text-sm mb-6 max-w-sm mx-auto">
+                  One last step — add your signature to complete your card.
+                </p>
+                <SignaturePad onSubmit={handleSignatureSubmit} />
+              </div>
             ) : (
               <div className="bg-white rounded-xl shadow p-8 text-center">
                 <FiCamera className="mx-auto text-indigo-500 mb-3" size={32} />
@@ -155,7 +174,7 @@ export default function DashboardPage() {
                 <p className="text-gray-600 text-sm mb-6 max-w-sm mx-auto">
                   Add a photo to unlock your visual GENESIS ID card — with a QR code others can scan to verify you.
                 </p>
-                <IdCardPhotoCapture onSubmit={handleIdCardPhotoSubmit} />
+                <IdCardPhotoCapture onSubmit={handlePhotoCaptured} />
               </div>
             )}
           </div>

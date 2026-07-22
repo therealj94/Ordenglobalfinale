@@ -45,6 +45,10 @@ POST /auth/register
 
 `onboardingToken` authorizes completing KYC (`/kyc/submit`, `/kyc/status/:userId`) for this one `userId`, before the user has a full session.
 
+If the email belongs to a deactivated account (admin's "delete user" is a soft delete), registering
+again reactivates that same row as a fresh account — status, GID, card photo/signature, and KYC profile
+are all cleared, and existing sessions are revoked. A still-active account's email still fails with `409`.
+
 ### 2. Login
 ```
 POST /auth/login
@@ -233,11 +237,12 @@ Authorization: Bearer <accessToken>
 
 **Request:**
 ```json
-{ "userId": "user-uuid", "photo": "data:image/jpeg;base64,..." }
+{ "userId": "user-uuid", "photo": "data:image/jpeg;base64,...", "signature": "data:image/png;base64,..." }
 ```
 
-Requires the user to already be `verified` with a `gid` assigned — this is the dedicated photo shown on
-the visual GENESIS ID card, separate from the KYC selfies. Fails with `403` otherwise.
+`signature` is optional (a finger/mouse-drawn signature captured on a canvas). Requires the user to
+already be `verified` with a `gid` assigned — this is the dedicated photo shown on the visual GENESIS ID
+card, separate from the KYC selfies. Fails with `403` otherwise.
 
 **Response:**
 ```json

@@ -96,10 +96,11 @@ Example: `GID-85m856-HND` — a user whose declared nationality is Honduras.
 
 Once verified, a user can add a dedicated card photo (separate from their
 KYC selfies — `apps/web/components/IdCardPhotoCapture.tsx`, stored in
-`User.idCardPhoto`) to unlock a visual ID card
-(`apps/web/components/GenesisIDCard.tsx`) on `/dashboard`, showing their
-GID, name, nationality, photo, issue/expiry dates, and a QR code that links
-to `/verify-gid/:gid`.
+`User.idCardPhoto`) and a finger/mouse-drawn signature
+(`apps/web/components/SignaturePad.tsx`, stored in `User.signature`) to
+unlock a visual ID card (`apps/web/components/GenesisIDCard.tsx`) on
+`/dashboard`, showing their GID, name, nationality, photo, issue/expiry
+dates, signature, and a QR code that links to `/verify-gid/:gid`.
 
 That public page calls `GET /api/public/gid/:gid` (no auth, rate-limited)
 — deliberately minimal: name, photo, nationality, GID, and "verified"

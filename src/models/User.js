@@ -63,6 +63,12 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true
     },
+    // Finger/mouse-drawn signature captured alongside the ID card photo,
+    // shown on the visual GENESIS ID card.
+    signature: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
     gidIssuedAt: {
       type: DataTypes.DATE,
       allowNull: true

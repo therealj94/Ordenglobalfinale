@@ -225,10 +225,14 @@ class KYCController {
 
   async uploadIdCardPhoto(req, res, next) {
     try {
-      const { userId, photo } = req.body;
+      const { userId, photo, signature } = req.body;
 
       if (!isValidImage(photo)) {
         return res.status(400).json({ error: 'A valid photo is required' });
+      }
+
+      if (signature !== undefined && signature !== null && !isValidImage(signature)) {
+        return res.status(400).json({ error: 'Signature must be a valid image' });
       }
 
       const user = await User.findByPk(userId);
@@ -247,7 +251,9 @@ class KYCController {
         return res.status(400).json({ error: quality.reason });
       }
 
-      await user.update({ idCardPhoto: photo });
+      const updates = { idCardPhoto: photo };
+      if (signature) updates.signature = signature;
+      await user.update(updates);
 
       res.json({ message: 'GENESIS ID card photo updated' });
     } catch (error) {

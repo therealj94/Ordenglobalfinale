@@ -15,7 +15,8 @@ router.get('/status/:userId', kycAuthMiddleware, KYCController.getKYCStatus);
 
 router.post('/id-card-photo', [
   body('userId').isUUID(),
-  body('photo').isString().notEmpty()
+  body('photo').isString().notEmpty(),
+  body('signature').optional().isString()
 ], handleValidationErrors, kycAuthMiddleware, KYCController.uploadIdCardPhoto);
 
 module.exports = router;

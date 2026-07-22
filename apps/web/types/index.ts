@@ -10,6 +10,7 @@ export interface User {
   nationality?: string | null;
   dateOfBirth?: string | null;
   idCardPhoto?: string | null;
+  signature?: string | null;
   gidIssuedAt?: string | null;
   gidExpiresAt?: string | null;
   createdAt: string;

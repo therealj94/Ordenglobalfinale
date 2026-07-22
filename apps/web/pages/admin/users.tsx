@@ -244,6 +244,7 @@ export default function AdminUsersPage() {
                   gid={cardUser.gid || ''}
                   nationality={cardUser.nationality}
                   idCardPhoto={cardUser.idCardPhoto}
+                  signature={cardUser.signature}
                   dateOfBirth={cardUser.dateOfBirth}
                   issuedAt={cardUser.gidIssuedAt}
                   expiresAt={cardUser.gidExpiresAt}
