@@ -32,7 +32,7 @@ export default function DashboardPage() {
     return (
       <Layout>
         <div className="flex items-center justify-center py-32">
-          <FiLoader className="animate-spin text-emerald-600" size={32} />
+          <FiLoader className="animate-spin text-violet-500" size={32} />
         </div>
       </Layout>
     );
@@ -42,27 +42,34 @@ export default function DashboardPage() {
     <Layout>
       <div className="max-w-4xl mx-auto py-12 px-4">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome, {user.fullName || user.email}</h1>
-          <p className="text-gray-600">Your Veta Wallet overview</p>
+          <h1 className="text-3xl font-bold text-white">Welcome, {user.fullName || user.email}</h1>
+          <p className="text-gray-500">Your Veta Wallet overview</p>
         </div>
 
         {/* Balance card */}
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-xl shadow p-8 mb-8 text-white">
-          <p className="text-emerald-100 text-sm mb-1">Available Balance</p>
-          <p className="text-4xl font-bold tracking-wide mb-4">{formatBalance(user.balance)} VC</p>
-          <div className="flex items-center text-emerald-100 text-sm">
-            <FiHash className="mr-1" />
-            <span className="font-mono">{user.gid}</span>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(user.gid);
-                toast.success('GENESIS ID copied');
-              }}
-              className="ml-2 hover:text-white"
-              title="Copy GENESIS ID"
-            >
-              <FiCopy size={14} />
-            </button>
+        <div className="relative rounded-2xl shadow-2xl p-8 mb-8 overflow-hidden bg-[#15151f] border border-white/10">
+          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-violet-600/20 blur-[80px] pointer-events-none" />
+          <div className="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-fuchsia-600/10 blur-[80px] pointer-events-none" />
+
+          <div className="relative">
+            <p className="text-gray-400 text-sm mb-1">Available Balance</p>
+            <p className="text-4xl font-bold tracking-wide mb-4 bg-gradient-to-r from-violet-300 via-fuchsia-300 to-violet-300 bg-clip-text text-transparent">
+              {formatBalance(user.balance)} VC
+            </p>
+            <div className="flex items-center text-gray-400 text-sm">
+              <FiHash className="mr-1" />
+              <span className="font-mono">{user.gid}</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(user.gid);
+                  toast.success('GENESIS ID copied');
+                }}
+                className="ml-2 hover:text-violet-400 transition"
+                title="Copy GENESIS ID"
+              >
+                <FiCopy size={14} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -70,32 +77,32 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <Link
             href="/send"
-            className="bg-white rounded-xl shadow p-6 flex items-center gap-4 hover:shadow-md transition"
+            className="bg-[#15151f] border border-white/10 rounded-xl shadow p-6 flex items-center gap-4 hover:border-violet-500/40 hover:bg-[#181822] transition"
           >
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-              <FiSend className="text-emerald-600" size={20} />
+            <div className="w-12 h-12 rounded-full bg-violet-500/15 flex items-center justify-center">
+              <FiSend className="text-violet-400" size={20} />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Send Credits</p>
+              <p className="font-semibold text-white">Send Credits</p>
               <p className="text-sm text-gray-500">To any GENESIS ID</p>
             </div>
           </Link>
 
           <Link
             href="/transactions"
-            className="bg-white rounded-xl shadow p-6 flex items-center gap-4 hover:shadow-md transition"
+            className="bg-[#15151f] border border-white/10 rounded-xl shadow p-6 flex items-center gap-4 hover:border-violet-500/40 hover:bg-[#181822] transition"
           >
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-              <FiClock className="text-emerald-600" size={20} />
+            <div className="w-12 h-12 rounded-full bg-violet-500/15 flex items-center justify-center">
+              <FiClock className="text-violet-400" size={20} />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Transaction History</p>
+              <p className="font-semibold text-white">Transaction History</p>
               <p className="text-sm text-gray-500">See all activity</p>
             </div>
           </Link>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-6 text-sm text-gray-500">
+        <div className="bg-[#15151f] border border-white/10 rounded-xl shadow p-6 text-sm text-gray-500">
           VC = Veta Credits, an internal balance shared across the Orden Global ecosystem. Not real currency.
         </div>
       </div>

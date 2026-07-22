@@ -18,26 +18,28 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4">
+    <div className="min-h-screen bg-[#0b0b12]">
+      <nav className="bg-[#131320] border-b border-white/5 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <FiCreditCard className="text-emerald-600" size={24} />
-            <span className="text-xl font-bold text-gray-900">Veta Wallet</span>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+              <FiCreditCard className="text-white" size={16} />
+            </div>
+            <span className="text-lg font-bold text-white tracking-tight">Veta Wallet</span>
           </Link>
 
           {user && (
             <div className="flex items-center gap-6">
-              <Link href="/dashboard" className="text-sm text-gray-600 hover:text-emerald-600 flex items-center gap-1">
+              <Link href="/dashboard" className="text-sm text-gray-400 hover:text-violet-400 transition flex items-center gap-1.5">
                 <FiCreditCard /> Dashboard
               </Link>
-              <Link href="/send" className="text-sm text-gray-600 hover:text-emerald-600 flex items-center gap-1">
+              <Link href="/send" className="text-sm text-gray-400 hover:text-violet-400 transition flex items-center gap-1.5">
                 <FiSend /> Send
               </Link>
-              <Link href="/transactions" className="text-sm text-gray-600 hover:text-emerald-600 flex items-center gap-1">
+              <Link href="/transactions" className="text-sm text-gray-400 hover:text-violet-400 transition flex items-center gap-1.5">
                 <FiClock /> History
               </Link>
-              <button onClick={handleLogout} className="text-sm text-red-600 hover:text-red-800 flex items-center gap-1">
+              <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-red-400 transition flex items-center gap-1.5">
                 <FiLogOut /> Logout
               </button>
             </div>

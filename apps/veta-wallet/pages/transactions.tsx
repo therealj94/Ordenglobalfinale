@@ -44,7 +44,7 @@ export default function TransactionsPage() {
     return (
       <Layout>
         <div className="flex items-center justify-center py-32">
-          <FiLoader className="animate-spin text-emerald-600" size={32} />
+          <FiLoader className="animate-spin text-violet-500" size={32} />
         </div>
       </Layout>
     );
@@ -53,27 +53,27 @@ export default function TransactionsPage() {
   return (
     <Layout>
       <div className="max-w-2xl mx-auto py-12 px-4">
-        <h1 className="text-2xl font-bold text-gray-900 mb-8">Transaction History</h1>
+        <h1 className="text-2xl font-bold text-white mb-8">Transaction History</h1>
 
-        <div className="bg-white rounded-xl shadow overflow-hidden">
+        <div className="bg-[#15151f] border border-white/10 rounded-xl shadow overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center h-40">
-              <FiLoader className="animate-spin text-emerald-600" size={28} />
+              <FiLoader className="animate-spin text-violet-500" size={28} />
             </div>
           ) : transactions.length === 0 ? (
             <p className="text-center text-gray-500 py-16">No transactions yet</p>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-white/5">
               {transactions.map((tx) => (
                 <div key={tx.id} className="flex items-center justify-between px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center ${
                         tx.type === 'welcome_bonus'
-                          ? 'bg-amber-100 text-amber-600'
+                          ? 'bg-amber-500/15 text-amber-400'
                           : tx.direction === 'in'
-                          ? 'bg-emerald-100 text-emerald-600'
-                          : 'bg-red-100 text-red-600'
+                          ? 'bg-emerald-500/15 text-emerald-400'
+                          : 'bg-red-500/15 text-red-400'
                       }`}
                     >
                       {tx.type === 'welcome_bonus' ? (
@@ -85,7 +85,7 @@ export default function TransactionsPage() {
                       )}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-white">
                         {tx.type === 'welcome_bonus'
                           ? 'Welcome bonus'
                           : tx.direction === 'in'
@@ -100,7 +100,7 @@ export default function TransactionsPage() {
                   </div>
                   <p
                     className={`font-semibold ${
-                      tx.direction === 'in' || tx.type === 'welcome_bonus' ? 'text-emerald-600' : 'text-red-600'
+                      tx.direction === 'in' || tx.type === 'welcome_bonus' ? 'text-emerald-400' : 'text-red-400'
                     }`}
                   >
                     {tx.direction === 'in' || tx.type === 'welcome_bonus' ? '+' : '-'}

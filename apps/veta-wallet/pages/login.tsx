@@ -35,65 +35,81 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-600 to-teal-800 px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-xl overflow-hidden">
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-6 py-8 text-center">
-            <FiCreditCard className="mx-auto text-white mb-2" size={36} />
-            <h1 className="text-3xl font-bold text-white mb-1">Veta Wallet</h1>
-            <p className="text-emerald-100 text-sm">Orden Global Ecosystem</p>
+    <div className="min-h-screen flex items-center justify-center bg-[#0b0b12] px-4 relative overflow-hidden">
+      {/* Ambient glow, Phantom-style */}
+      <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-violet-600/20 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[10%] w-[400px] h-[400px] rounded-full bg-fuchsia-600/10 blur-[100px] pointer-events-none" />
+
+      <div className="w-full max-w-md relative">
+        <div className="bg-[#15151f] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="px-8 pt-10 pb-6 text-center">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4 shadow-lg shadow-violet-500/30">
+              <FiCreditCard className="text-white" size={26} />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-1">Veta Wallet</h1>
+            <p className="text-gray-500 text-sm">Orden Global Ecosystem</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="px-6 py-8 space-y-4">
-            <p className="text-gray-600 text-sm text-center mb-2">
-              Sign in with your <span className="font-semibold">GENESIS ID</span> account — one identity across every Orden Global app.
+          <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-4">
+            <p className="text-gray-400 text-sm text-center mb-2">
+              Sign in with your <span className="text-violet-400 font-semibold">GENESIS ID</span> account — one identity across every Orden Global app.
             </p>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
               <div className="relative">
-                <FiMail className="absolute left-3 top-3 text-gray-400" />
+                <FiMail className="absolute left-3 top-3 text-gray-500" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#0e0e16] border border-white/10 rounded-lg text-white placeholder-gray-600 focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
               <div className="relative">
-                <FiLock className="absolute left-3 top-3 text-gray-400" />
+                <FiLock className="absolute left-3 top-3 text-gray-500" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Your password"
-                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full pl-10 pr-10 py-2.5 bg-[#0e0e16] border border-white/10 rounded-lg text-white placeholder-gray-600 focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-300"
                   tabIndex={-1}
                 >
                   {showPassword ? <FiEyeOff /> : <FiEye />}
                 </button>
               </div>
+              <div className="text-right mt-2">
+                <a
+                  href={`${GENESIS_APP_URL}/auth/forgot-password`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-violet-400 hover:text-violet-300"
+                >
+                  Forgot your password?
+                </a>
+              </div>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
+              <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg p-3">
                 {error}
                 {error.toLowerCase().includes('verif') && (
                   <>
                     {' '}
-                    <a href={`${GENESIS_APP_URL}/dashboard`} className="underline font-semibold" target="_blank" rel="noreferrer">
+                    <a href={`${GENESIS_APP_URL}/dashboard`} className="underline font-semibold text-red-200" target="_blank" rel="noreferrer">
                       Finish verification on GENESIS ID
                     </a>
                   </>
@@ -104,7 +120,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50 transition flex items-center justify-center mt-6"
+              className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-3 rounded-lg font-semibold hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50 transition flex items-center justify-center mt-6 shadow-lg shadow-violet-900/40"
             >
               {loading ? (
                 <>
@@ -115,9 +131,9 @@ export default function LoginPage() {
               )}
             </button>
 
-            <p className="text-center text-gray-600 text-sm mt-6">
+            <p className="text-center text-gray-500 text-sm mt-6">
               Don&apos;t have a GENESIS ID yet?{' '}
-              <a href={`${GENESIS_APP_URL}/auth/register`} className="text-emerald-600 hover:underline font-semibold" target="_blank" rel="noreferrer">
+              <a href={`${GENESIS_APP_URL}/auth/register`} className="text-violet-400 hover:text-violet-300 font-semibold" target="_blank" rel="noreferrer">
                 Create one
               </a>
             </p>

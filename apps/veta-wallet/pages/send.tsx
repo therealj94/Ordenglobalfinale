@@ -56,7 +56,7 @@ export default function SendPage() {
     return (
       <Layout>
         <div className="flex items-center justify-center py-32">
-          <FiLoader className="animate-spin text-emerald-600" size={32} />
+          <FiLoader className="animate-spin text-violet-500" size={32} />
         </div>
       </Layout>
     );
@@ -65,14 +65,14 @@ export default function SendPage() {
   return (
     <Layout>
       <div className="max-w-lg mx-auto py-12 px-4">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Send Credits</h1>
-        <p className="text-gray-600 mb-8">
+        <h1 className="text-2xl font-bold text-white mb-2">Send Credits</h1>
+        <p className="text-gray-500 mb-8">
           Send Veta Credits to anyone by their GENESIS ID. Your balance:{' '}
-          <span className="font-semibold">{Number(user.balance).toFixed(2)} VC</span>
+          <span className="font-semibold text-violet-400">{Number(user.balance).toFixed(2)} VC</span>
         </p>
 
         {success && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg p-4 mb-6 flex items-start gap-3">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-lg p-4 mb-6 flex items-start gap-3">
             <FiCheckCircle className="mt-0.5 shrink-0" />
             <p>
               Sent <span className="font-semibold">{Number(success.amount).toFixed(2)} VC</span> to{' '}
@@ -81,24 +81,24 @@ export default function SendPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-[#15151f] border border-white/10 rounded-xl shadow p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Recipient&apos;s GENESIS ID</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Recipient&apos;s GENESIS ID</label>
             <div className="relative">
-              <FiHash className="absolute left-3 top-3 text-gray-400" />
+              <FiHash className="absolute left-3 top-3 text-gray-500" />
               <input
                 type="text"
                 value={toGid}
                 onChange={(e) => setToGid(e.target.value)}
                 placeholder="GID-85m856-HND"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#0e0e16] border border-white/10 rounded-lg text-white placeholder-gray-600 font-mono focus:ring-2 focus:ring-violet-500 outline-none"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Amount (VC)</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Amount (VC)</label>
             <input
               type="number"
               step="0.01"
@@ -106,26 +106,26 @@ export default function SendPage() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-2.5 bg-[#0e0e16] border border-white/10 rounded-lg text-white placeholder-gray-600 focus:ring-2 focus:ring-violet-500 outline-none"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Note (optional)</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Note (optional)</label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What's this for?"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-2.5 bg-[#0e0e16] border border-white/10 rounded-lg text-white placeholder-gray-600 focus:ring-2 focus:ring-violet-500 outline-none"
             />
           </div>
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-emerald-600 text-white py-3 rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50 transition flex items-center justify-center"
+            className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-3 rounded-lg font-semibold hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50 transition flex items-center justify-center shadow-lg shadow-violet-900/40"
           >
             {submitting ? <FiLoader className="animate-spin mr-2" /> : <FiSend className="mr-2" />}
             {submitting ? 'Sending...' : 'Send'}
