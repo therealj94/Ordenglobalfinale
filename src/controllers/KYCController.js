@@ -54,7 +54,7 @@ class KYCController {
 
       const verification = await Verification.create({
         userId: user.id,
-        veriffSessionId: `local-${uuidv4()}`,
+        sessionId: uuidv4(),
         status: 'pending',
         documentType,
         documentCountry: documentCountry || null,

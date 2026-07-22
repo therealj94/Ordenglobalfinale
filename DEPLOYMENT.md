@@ -11,9 +11,11 @@ ALB (Application Load Balancer)
 ECS (Container: Node.js Express)
     ↓
 RDS PostgreSQL (Database)
-    ↓
-Veriff.com (External - Verification)
 ```
+
+GENESIS ID is self-contained — there is no external verification provider in
+this pipeline. Facial and document capture, storage, and (manual) review all
+happen inside GENESIS ID itself. See `VERIFICATION_ENGINE.md`.
 
 ## Prerequisites
 - AWS Account con permisos de admin
@@ -217,8 +219,8 @@ aws secretsmanager create-secret \
   --secret-string "your_long_random_jwt_secret_key"
 
 aws secretsmanager create-secret \
-  --name genesis-id-veriff-key \
-  --secret-string "your_veriff_api_key"
+  --name genesis-id-email-password \
+  --secret-string "your_email_app_password"
 ```
 
 ---

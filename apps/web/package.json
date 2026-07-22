@@ -1,7 +1,7 @@
 {
   "name": "genesis-id-web",
   "version": "1.0.0",
-  "description": "GENESIS ID - Facial verification platform like Veriff Station",
+  "description": "GENESIS ID - Orden Global's own facial and document verification engine",
   "private": true,
   "scripts": {
     "dev": "next dev",

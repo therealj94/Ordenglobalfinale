@@ -1,8 +1,6 @@
-const { User, Verification, VerificationSession, LoginToken } = require('../models');
+const { User, LoginToken } = require('../models');
 const JWTService = require('../services/JWTService');
 const PasswordService = require('../services/PasswordService');
-const VeriffService = require('../services/VeriffService');
-const { v4: uuidv4 } = require('uuid');
 
 class AuthController {
   async register(req, res, next) {
@@ -38,131 +36,6 @@ class AuthController {
     }
   }
 
-  async verifyInit(req, res, next) {
-    try {
-      const { userId } = req.body;
-
-      const user = await User.findByPk(userId);
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      const veriffSession = await VeriffService.createSession(user.id, user.email);
-
-      await VerificationSession.create({
-        userId: user.id,
-        veriffUrl: veriffSession.url,
-        externalDossierRef: veriffSession.externalDossierRef,
-        status: 'created',
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
-      });
-
-      await Verification.create({
-        userId: user.id,
-        veriffSessionId: veriffSession.sessionId,
-        status: 'pending',
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
-      });
-
-      res.json({
-        message: 'Verification session created',
-        veriffUrl: veriffSession.url,
-        sessionId: veriffSession.sessionId
-      });
-    } catch (error) {
-      console.error('Verify init error:', error);
-      res.status(500).json({ error: 'Failed to initialize verification' });
-    }
-  }
-
-  async verifyCallback(req, res, next) {
-    try {
-      const { sessionId, status, decision, timestamp } = req.body;
-
-      const verification = await Verification.findOne({
-        where: { veriffSessionId: sessionId }
-      });
-
-      if (!verification) {
-        return res.status(404).json({ error: 'Verification not found' });
-      }
-
-      const newStatus = decision === 'approved' ? 'approved' : 'rejected';
-      await verification.update({
-        status: newStatus,
-        verifiedAt: new Date(timestamp * 1000),
-        rawData: req.body
-      });
-
-      if (newStatus === 'approved') {
-        await User.update(
-          { status: 'verified' },
-          { where: { id: verification.userId } }
-        );
-
-        const user = await User.findByPk(verification.userId);
-        const accessToken = JWTService.generateAccessToken(user.id, user.email);
-        const refreshToken = JWTService.generateRefreshToken(user.id);
-
-        await LoginToken.create({
-          userId: user.id,
-          token: accessToken,
-          refreshToken: refreshToken,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          refreshExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-        });
-
-        return res.json({
-          message: 'Verification approved',
-          accessToken,
-          refreshToken,
-          user: {
-            id: user.id,
-            email: user.email,
-            status: 'verified'
-          }
-        });
-      }
-
-      res.status(400).json({
-        message: 'Verification rejected',
-        status: 'rejected'
-      });
-    } catch (error) {
-      console.error('Verify callback error:', error);
-      res.status(500).json({ error: 'Failed to process verification callback' });
-    }
-  }
-
-  async verifyStatus(req, res, next) {
-    try {
-      const { sessionId } = req.params;
-
-      const verification = await Verification.findOne({
-        where: { veriffSessionId: sessionId },
-        include: ['User']
-      });
-
-      if (!verification) {
-        return res.status(404).json({ error: 'Verification not found' });
-      }
-
-      res.json({
-        status: verification.status,
-        verifiedAt: verification.verifiedAt,
-        rejectionReason: verification.rejectionReason,
-        user: {
-          id: verification.User.id,
-          email: verification.User.email,
-          status: verification.User.status
-        }
-      });
-    } catch (error) {
-      console.error('Verify status error:', error);
-      res.status(500).json({ error: 'Failed to get verification status' });
-    }
-  }
-
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
@@ -178,7 +51,7 @@ class AuthController {
       }
 
       if (user.status !== 'verified') {
-        return res.status(403).json({ error: 'User not verified. Complete facial verification first.' });
+        return res.status(403).json({ error: 'User not verified. Complete identity verification first.' });
       }
 
       const accessToken = JWTService.generateAccessToken(user.id, user.email);

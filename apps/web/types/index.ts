@@ -14,7 +14,7 @@ export interface User {
 export interface Verification {
   id: string;
   userId: string;
-  veriffSessionId: string;
+  sessionId: string;
   status: 'pending' | 'approved' | 'rejected' | 'expired' | 'abandoned';
   documentType?: string;
   verifiedAt?: string;
@@ -22,43 +22,6 @@ export interface Verification {
   rawData?: Record<string, any>;
   rejectionReason?: string;
   createdAt: string;
-}
-
-export interface VerificationSession {
-  id: string;
-  userId: string;
-  veriffUrl: string;
-  externalDossierRef: string;
-  status: 'created' | 'started' | 'submitted' | 'decided' | 'abandoned';
-  expiresAt: string;
-  completedAt?: string;
-}
-
-// KYC/Document types
-export interface DocumentData {
-  type: 'PASSPORT' | 'ID_CARD' | 'DRIVERS_LICENSE' | 'OTHER';
-  country?: string;
-  documentNumber?: string;
-  issuedDate?: string;
-  expiryDate?: string;
-}
-
-export interface PersonData {
-  firstName?: string;
-  lastName?: string;
-  dateOfBirth?: string;
-  gender?: string;
-  nationality?: string;
-}
-
-export interface KYCData {
-  person: PersonData;
-  document: DocumentData;
-  selfie?: string;
-  liveness?: {
-    status: 'passed' | 'failed';
-    score?: number;
-  };
 }
 
 // Auth types

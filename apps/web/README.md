@@ -1,16 +1,16 @@
 # GENESIS ID Web - Frontend Application
 
-A modern Next.js + TypeScript web application for identity verification and KYC (Know Your Customer) with Veriff integration. This is the complete Veriff Station-like interface for the Orden Global ecosystem.
+A Next.js + TypeScript web application with GENESIS ID's own identity verification flow (no third-party verification provider) and a full admin dashboard for the Orden Global ecosystem.
 
 ## 🚀 Features
 
-- **User Registration & Authentication** - Secure email/password registration with JWT tokens
-- **Facial Verification** - Veriff SDK integration for liveness detection and facial recognition
-- **Document Scanning** - ID, passport, and driver's license verification
+- **User Registration & Authentication** - Email/password with JWT tokens (plus a short-lived onboarding token for pre-verification users)
+- **Facial Verification** - Live camera, 5-angle guided rotation (straight, left, right, up, down) for liveness — built in-house, no external SDK
+- **Document Scanning** - ID card / driver's license (front + back) or passport (photo page), camera or file upload
 - **KYC Flow** - Step-by-step guided verification process with progress tracking
-- **Admin Dashboard** - Complete verification management for admins
-- **Manual Review Panel** - Review and approve/reject pending verifications with notes
-- **Real-time Status** - Live status updates for verification cases
+- **Embeddable Widget Page** (`/embed/verify`) - loaded in an iframe by ecosystem apps via `packages/kyc-sdk`
+- **Admin Dashboard** - Users, verifications (with document viewer), manual review queue, connected-app API keys, reports
+- **Real-time Status** - Toast notifications, live status updates
 - **Responsive Design** - Mobile-friendly UI with Tailwind CSS
 
 ## 🛠️ Tech Stack
@@ -18,34 +18,24 @@ A modern Next.js + TypeScript web application for identity verification and KYC 
 - **Framework**: Next.js 14
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
+- **Charts**: Recharts
 - **UI Components**: Headless UI, React Icons
-- **State Management**: Zustand (for future)
-- **HTTP Client**: Axios with token refresh
+- **HTTP Client**: Axios with automatic token refresh
 - **Notifications**: React Hot Toast
-- **Verification**: Veriff SDK
 
 ## 📦 Installation
 
 ### Prerequisites
 - Node.js 18+
-- npm or yarn
+- npm
 
 ### Setup
 
 ```bash
-# Navigate to web app directory
 cd apps/web
-
-# Install dependencies
 npm install
-
-# Create .env.local from template
 cp .env.example .env.local
-
-# Configure environment variables
-# Edit .env.local with your backend API URL and Veriff settings
-
-# Start development server
+# NEXT_PUBLIC_API_URL=http://localhost:3000/api
 npm run dev
 ```
 
@@ -55,242 +45,190 @@ Server runs on `http://localhost:3001`
 
 ```
 apps/web/
-├── components/           # Reusable React components
-│   ├── Layout.tsx       # Main layout wrapper
-│   ├── Header.tsx       # Navigation header
-│   ├── Sidebar.tsx      # Admin sidebar
-│   ├── KYCFlow.tsx      # KYC verification flow
-│   └── VeriffSDK.tsx    # Veriff SDK integration
-├── pages/               # Next.js pages and routes
-│   ├── index.tsx        # Home page
+├── components/
+│   ├── Layout.tsx           # Main layout wrapper
+│   ├── Header.tsx            # Navigation header
+│   ├── Sidebar.tsx           # Admin sidebar
+│   ├── KYCFlow.tsx           # KYC verification flow orchestrator
+│   ├── FacialCapture.tsx     # Live camera, 5-angle rotation capture
+│   ├── DocumentCapture.tsx   # Document type + front/back capture
+│   └── DocumentViewer.tsx    # Admin: view submitted photos
+├── pages/
+│   ├── _app.tsx              # Global styles + Toaster
+│   ├── index.tsx             # Home page
 │   ├── auth/
-│   │   ├── login.tsx    # Login page
-│   │   └── register.tsx # Registration page
-│   ├── verify.tsx       # Verification page
-│   ├── dashboard/       # User dashboard
-│   └── admin/           # Admin pages
-│       ├── index.tsx    # Admin dashboard
-│       ├── users.tsx    # User management
+│   │   ├── login.tsx
+│   │   └── register.tsx
+│   ├── verify.tsx            # Standalone KYC flow page
+│   ├── embed/
+│   │   └── verify.tsx        # Iframe-embeddable KYC flow (for ecosystem apps)
+│   ├── dashboard/
+│   │   └── index.tsx         # User dashboard
+│   └── admin/
+│       ├── index.tsx         # Admin dashboard (charts)
+│       ├── users.tsx
 │       ├── verifications.tsx
-│       └── reviews.tsx  # Manual review queue
-├── hooks/               # Custom React hooks
-│   ├── useAuth.ts       # Authentication logic
-│   └── useVerification.ts # Verification flow
-├── lib/                 # Utilities and libraries
-│   └── apiClient.ts     # Axios API client with interceptors
-├── types/               # TypeScript definitions
-│   └── index.ts         # All types
-├── styles/              # Global styles
-└── public/              # Static assets
+│       ├── reviews.tsx       # Manual review queue
+│       ├── settings.tsx      # Connected-app API keys
+│       └── reports.tsx
+├── hooks/
+│   ├── useAuth.ts
+│   ├── useVerification.ts    # submitKYC / getKYCStatus
+│   └── useRequireAdmin.ts    # route guard for /admin/*
+├── lib/
+│   └── apiClient.ts          # Axios client with JWT + refresh interceptors
+├── types/
+│   └── index.ts
+├── styles/globals.css
+├── public/sdk/genesis-kyc-sdk.js  # served copy of the ecosystem widget
+├── tailwind.config.js
+└── postcss.config.js
 ```
 
 ## 🔐 Key Components
 
-### 1. **KYCFlow** (`components/KYCFlow.tsx`)
-Main verification flow component with:
-- Step-by-step progress tracking
-- Veriff SDK integration
-- Status checking
-- Retry handling
-- Error management
+### **KYCFlow** (`components/KYCFlow.tsx`)
+Orchestrates: intro → `FacialCapture` → `DocumentCapture` → submit → review/completed/failed. Accepts an `onStatusChange` callback so the embeddable page can report results to a parent app.
 
-### 2. **useAuth Hook** (`hooks/useAuth.ts`)
-Handles:
-- User registration
-- Login/logout
-- Token management
-- JWT refresh
-- Session persistence
+### **FacialCapture** (`components/FacialCapture.tsx`)
+Live camera preview that stays mounted for the component's whole lifetime (captured-photo previews render as an overlay, not a remount — remounting loses the attached `MediaStream`). Waits for the video's `loadedmetadata` event before enabling capture, so a 0×0 canvas is never produced. Captures 5 angles.
 
-### 3. **useVerification Hook** (`hooks/useVerification.ts`)
-Manages:
-- Verification initialization
-- Status checking
-- KYC data submission
-- Retry logic
-- Error handling
+### **DocumentCapture** (`components/DocumentCapture.tsx`)
+Document type selection, then front (+ back for ID/license) capture via camera or file upload.
 
-### 4. **API Client** (`lib/apiClient.ts`)
-- Automatic JWT token injection
-- Token refresh on 401
-- Error handling
-- Request/response interceptors
+### **useAuth** (`hooks/useAuth.ts`)
+Registration, login/logout, JWT refresh, and `fetchProfile()` (used to restore the session on page load via `/auth/me`).
+
+### **useVerification** (`hooks/useVerification.ts`)
+`submitKYC()` → `POST /api/kyc/submit`, `getKYCStatus()` → `GET /api/kyc/status/:userId`.
+
+### **apiClient** (`lib/apiClient.ts`)
+Automatic JWT injection, refresh-on-401, redirects to `/auth/login` on unrecoverable auth failure.
 
 ## 📄 Main Pages
 
-### Public Pages
-- **/** - Home page with features and CTA
-- **/auth/register** - User registration
-- **/auth/login** - User login
-- **/verify** - KYC verification flow
+### Public
+- **/** - Home page
+- **/auth/register**, **/auth/login**
+- **/verify** - standalone KYC flow (`?userId=`)
+- **/embed/verify** - iframe-embeddable KYC flow for ecosystem apps (`?userId=&appName=`)
 
-### Protected Pages
-- **/dashboard** - User dashboard (requires auth)
+### Protected
+- **/dashboard** - user dashboard
 
-### Admin Pages (requires admin role)
-- **/admin** - Admin dashboard
-- **/admin/users** - User management
-- **/admin/verifications** - Verification history
-- **/admin/reviews** - Manual review queue
-- **/admin/reports** - Analytics and reports
+### Admin (requires `role: admin`, guarded by `useRequireAdmin`)
+- **/admin**, **/admin/users**, **/admin/verifications**, **/admin/reviews**, **/admin/settings**, **/admin/reports**
 
 ## 🔌 API Integration
 
-The frontend communicates with the backend API at:
+Backend at `http://localhost:3000/api`. Key endpoints used by this frontend:
+
 ```
-http://localhost:3000/api
+POST /auth/register           - Register (returns onboardingToken)
+POST /auth/login
+GET  /auth/me
+POST /auth/refresh
+POST /auth/logout
+
+POST /kyc/submit               - Submit facial + document capture
+GET  /kyc/status/:userId
+
+GET  /admin/users, /admin/verifications, /admin/manual-reviews
+POST /admin/reviews/:id/approve, /admin/reviews/:id/reject
+GET/POST/DELETE /admin/apps    - connected-app API keys
+GET  /admin/reports, /admin/logs
 ```
 
-Key endpoints used:
-```
-POST /auth/register           - Register new user
-POST /auth/login              - Login user
-POST /auth/verify-init        - Start verification
-POST /auth/verify-callback    - Receive Veriff callback
-GET  /auth/verify-status/:id  - Check status
-POST /auth/logout             - Logout
-POST /auth/refresh            - Refresh JWT token
-
-POST /apps/user-status        - Check if user verified
-POST /apps/register-app       - Register app
-POST /apps/token-validate     - Validate token
-
-GET  /admin/users             - List users (admin)
-GET  /admin/verifications     - List verifications
-POST /admin/reviews/:id/approve  - Approve verification
-POST /admin/reviews/:id/reject   - Reject verification
-```
+`/api/apps/*` (user-status, register-app, token-validate) are called by
+**other apps' backends** with an `X-API-Key`, not by this frontend — see
+`packages/kyc-sdk/README.md`.
 
 ## ✅ Environment Variables
 
-See `.env.example` for all available options:
-
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
-NEXT_PUBLIC_VERIFF_URL=https://station.veriff.com
-NEXT_PUBLIC_VERIFF_SDK_URL=https://cdn.veriff.com/js/sdk/latest
+NEXT_PUBLIC_APP_URL=http://localhost:3001
+NEXT_PUBLIC_ADMIN_URL=http://localhost:3001/admin
 NODE_ENV=development
 ```
-
-## 🎨 UI/UX Features
-
-- **Responsive Design** - Works on all screen sizes
-- **Dark/Light Mode Ready** - Base for theme support
-- **Loading States** - Spinner and skeleton loaders
-- **Error Handling** - User-friendly error messages
-- **Toast Notifications** - Real-time feedback
-- **Accessibility** - WCAG compliant components
-- **Animations** - Smooth transitions and spinners
 
 ## 🧪 Testing
 
 ```bash
-# Run tests
 npm run test
-
-# Run with coverage
-npm run test -- --coverage
-
-# Type checking
 npm run type-check
 ```
 
 ## 📝 Code Quality
 
 ```bash
-# Lint code
 npm run lint
-
-# Format code
 npm run format
 ```
 
 ## 🚀 Building for Production
 
 ```bash
-# Build
 npm run build
-
-# Start production server
 npm run start
 ```
 
 ## 🔒 Security Features
 
-- **JWT Authentication** - Secure token-based auth
-- **Automatic Token Refresh** - Refreshes before expiry
-- **HTTPS Only** - All API calls over HTTPS in production
-- **Input Validation** - Form validation on frontend
-- **XSS Protection** - React's built-in XSS protection
-- **CORS** - Configured on backend
-- **HttpOnly Cookies** - Refresh tokens in cookies (can be configured)
+- JWT auth with automatic refresh
+- Short-lived onboarding token scoped to a single userId for pre-verification KYC
+- Admin routes gated client-side (`useRequireAdmin`) **and** server-side (`adminMiddleware`)
+- Input validation on all forms
+- CORS configured on the backend
 
 ## 🎯 User Flow
 
 ```
-1. User lands on home page
-   ↓
-2. Clicks "Get Started" → Redirected to /auth/register
-   ↓
-3. Fills registration form → Creates account
-   ↓
-4. Redirected to /verify with userId
-   ↓
-5. Starts KYC flow with Veriff SDK
-   ↓
-6. Captures facial recognition + document
-   ↓
-7. Veriff processes and sends webhook
-   ↓
-8. If approved → Get JWT tokens → Redirected to /dashboard
-   ↓
-9. If pending → Shows "Under Review" message
-   ↓
-10. If rejected → Shows error, can retry
+1. Home page → "Get Started" → /auth/register
+2. Register → onboarding token issued
+3. Redirected to /verify?userId=...
+4. FacialCapture: 5 guided angles (straight, left, right, up, down)
+5. DocumentCapture: document type → front (+ back) capture
+6. POST /kyc/submit → status: pending
+7. Shows "Under Review" — a human admin reviews the photos
+8. Once approved: user logs in normally → JWT → /dashboard
+9. If rejected: shown the reason, can retry
 ```
 
 ## 📊 Admin Flow
 
 ```
-Admin Dashboard (/admin)
+/admin/reviews → pending cases list
    ↓
-Navigate to "Manual Reviews" (/admin/reviews)
+Select case → view user info + submitted photos (DocumentViewer)
    ↓
-See pending verification cases
+Add notes → Approve or Reject
    ↓
-Select case → View user and verification details
-   ↓
-Add review notes (optional)
-   ↓
-Click "Approve" or "Reject"
-   ↓
-Status updates instantly
-   ↓
-User notified via email
+User status updates + email notification
 ```
 
 ## 🐛 Troubleshooting
 
-### Issue: "API connection refused"
+### "API connection refused"
 - Check backend is running on `http://localhost:3000`
 - Verify `NEXT_PUBLIC_API_URL` in `.env.local`
 
-### Issue: "Veriff SDK not loading"
-- Check internet connection
-- Verify Veriff SDK URL in environment
-- Check browser console for CORS errors
+### Camera doesn't start / capture stays disabled
+- Check browser camera permissions
+- Capture is gated on the video's `loadedmetadata` event — if the camera
+  never initializes, check the browser console for `getUserMedia` errors
 
-### Issue: "Token expired"
-- Automatic refresh should handle this
-- If still failing, login again
-- Check localStorage for tokens
+### "Token expired"
+- Automatic refresh should handle this; if it still fails, log in again
+- Check localStorage for `accessToken`/`refreshToken`
 
 ## 📚 Additional Resources
 
 - [Next.js Docs](https://nextjs.org/docs)
 - [TypeScript Docs](https://www.typescriptlang.org/docs)
 - [Tailwind CSS](https://tailwindcss.com/docs)
-- [Veriff Documentation](https://developers.veriff.com)
+- Root `VERIFICATION_ENGINE.md` for how the verification pipeline works
+- `packages/kyc-sdk/README.md` for how other apps embed this flow
 
 ## 🤝 Contributing
 
@@ -304,7 +242,6 @@ MIT
 
 ## 🆘 Support
 
-For issues or questions:
 - GitHub Issues
 - Email: dev@orden-global.com
 - Slack: #genesis-id

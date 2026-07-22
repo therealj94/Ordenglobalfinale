@@ -1,7 +1,7 @@
 # GENESIS ID - API Documentation
 
 ## Overview
-GENESIS ID es el motor centralizado de verificación facial para el ecosistema Orden Global. Permite que usuarios se registren una sola vez y accedan a todas las apps del ecosistema.
+GENESIS ID es el motor propio de verificación de identidad (facial + documentos) del ecosistema Orden Global. No depende de ningún proveedor externo — la captura, el almacenamiento y la decisión (hoy manual, vía el panel admin) ocurren enteramente dentro de GENESIS ID. Los usuarios se registran una sola vez y acceden a todas las apps del ecosistema.
 
 ## Base URL
 ```
@@ -9,10 +9,10 @@ https://genesis-id.orden-global.com/api
 ```
 
 ## Authentication
-Utiliza JWT (JSON Web Tokens). Incluye el token en el header:
-```
-Authorization: Bearer <access_token>
-```
+Hay dos esquemas de autenticación distintos:
+
+1. **Usuarios finales**: JWT en el header `Authorization: Bearer <access_token>` (o un `onboardingToken` de corta duración entre el registro y la primera verificación).
+2. **Apps del ecosistema** (Veta Wallet, My Token Pay, etc.): API key en el header `X-API-Key: <key>`, emitida desde el panel admin (Settings → Connected Apps).
 
 ---
 
@@ -38,83 +38,14 @@ POST /auth/register
 {
   "message": "User registered successfully",
   "userId": "uuid-here",
-  "email": "user@example.com"
+  "email": "user@example.com",
+  "onboardingToken": "jwt-token-valid-2h"
 }
 ```
 
-### 2. Initialize Verification (Facial)
-```
-POST /auth/verify-init
-```
+`onboardingToken` authorizes completing KYC (`/kyc/submit`, `/kyc/status/:userId`) for this one `userId`, before the user has a full session.
 
-**Request:**
-```json
-{
-  "userId": "user-uuid"
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Verification session created",
-  "veriffUrl": "https://station.veriff.com/...",
-  "sessionId": "veriff-session-id"
-}
-```
-
-### 3. Verify Callback (Webhook from Veriff)
-```
-POST /auth/verify-callback
-```
-
-**Request (from Veriff):**
-```json
-{
-  "verification": {
-    "id": "session-id",
-    "status": "submitted",
-    "decision": "approved",
-    "timestamp": 1234567890,
-    "person": {...},
-    "document": {...}
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Verification approved",
-  "accessToken": "jwt-token",
-  "refreshToken": "refresh-token",
-  "user": {
-    "id": "user-uuid",
-    "email": "user@example.com",
-    "status": "verified"
-  }
-}
-```
-
-### 4. Check Verification Status
-```
-GET /auth/verify-status/:sessionId
-```
-
-**Response:**
-```json
-{
-  "status": "approved",
-  "verifiedAt": "2024-07-21T10:30:00Z",
-  "user": {
-    "id": "user-uuid",
-    "email": "user@example.com",
-    "status": "verified"
-  }
-}
-```
-
-### 5. Login
+### 2. Login
 ```
 POST /auth/login
 ```
@@ -136,40 +67,91 @@ POST /auth/login
     "id": "user-uuid",
     "email": "user@example.com",
     "fullName": "John Doe",
-    "status": "verified"
+    "status": "verified",
+    "role": "user"
   }
 }
 ```
 
-### 6. Refresh Token
+Fails with `403` if the user hasn't completed verification yet (`status !== 'verified'`).
+
+### 3. Get Current User
+```
+GET /auth/me
+Authorization: Bearer <access_token>
+```
+
+### 4. Refresh Token
 ```
 POST /auth/refresh
 ```
 
 **Request:**
 ```json
-{
-  "refreshToken": "refresh-token"
-}
+{ "refreshToken": "refresh-token" }
 ```
 
 **Response:**
 ```json
-{
-  "accessToken": "new-jwt-token"
-}
+{ "accessToken": "new-jwt-token" }
 ```
 
-### 7. Logout
+### 5. Logout
 ```
 POST /auth/logout
 Authorization: Bearer <access_token>
 ```
 
+---
+
+## KYC Endpoints
+
+### 1. Submit KYC
+```
+POST /kyc/submit
+Authorization: Bearer <onboardingToken or accessToken>
+```
+
+**Request:**
+```json
+{
+  "userId": "user-uuid",
+  "documentType": "ID_CARD",
+  "documentCountry": "US",
+  "documentFrontImage": "data:image/jpeg;base64,...",
+  "documentBackImage": "data:image/jpeg;base64,...",
+  "selfieImages": ["data:image/jpeg;base64,...", "..."],
+  "livenessResult": { "anglesCaptured": 5, "method": "guided-rotation" }
+}
+```
+
+`documentBackImage` is required for `ID_CARD` and `DRIVERS_LICENSE`, not for `PASSPORT`. At least 3 `selfieImages` are required.
+
 **Response:**
 ```json
 {
-  "message": "Logged out successfully"
+  "message": "KYC submitted successfully, pending review",
+  "verificationId": "verification-uuid",
+  "status": "pending"
+}
+```
+
+This creates a `ManualReviewCase` that shows up in the admin panel at `/admin/reviews`.
+
+### 2. Check KYC Status
+```
+GET /kyc/status/:userId
+Authorization: Bearer <onboardingToken or accessToken>
+```
+
+**Response:**
+```json
+{
+  "verificationId": "verification-uuid",
+  "status": "pending",
+  "reviewMode": "manual",
+  "verifiedAt": null,
+  "rejectionReason": null
 }
 ```
 
@@ -177,17 +159,17 @@ Authorization: Bearer <access_token>
 
 ## App Integration Endpoints
 
-### 1. Check User Status (Apps use this)
+All of these require `X-API-Key: <key>` (issued in the admin panel — see `packages/kyc-sdk/README.md` for full integration instructions).
+
+### 1. Check User Status
 ```
 POST /apps/user-status
+X-API-Key: gid_live_xxxxxxxxxxxxxxxxxxxx
 ```
 
 **Request:**
 ```json
-{
-  "userId": "user-uuid",
-  "appName": "veta-wallet"
-}
+{ "userId": "user-uuid", "appName": "veta-wallet" }
 ```
 
 **Response:**
@@ -205,107 +187,72 @@ POST /apps/user-status
 ### 2. Register App for User
 ```
 POST /apps/register-app
+X-API-Key: gid_live_xxxxxxxxxxxxxxxxxxxx
 ```
 
 **Request:**
 ```json
-{
-  "userId": "user-uuid",
-  "appName": "veta-wallet"
-}
+{ "userId": "user-uuid", "appName": "veta-wallet" }
 ```
 
-**Response:**
-```json
-{
-  "message": "App registered successfully",
-  "appRegistration": {
-    "id": "registration-uuid",
-    "userId": "user-uuid",
-    "appName": "veta-wallet",
-    "linkedAt": "2024-07-21T10:30:00Z"
-  }
-}
-```
-
-### 3. Validate Token (Apps use this)
+### 3. Validate a User's Token
 ```
 POST /apps/token-validate
-Authorization: Bearer <access_token>
+X-API-Key: gid_live_xxxxxxxxxxxxxxxxxxxx
+Authorization: Bearer <the-users-jwt>
 ```
 
 **Response:**
 ```json
-{
-  "valid": true,
-  "userId": "user-uuid",
-  "email": "user@example.com"
-}
-```
-
-### 4. Get App Users
-```
-GET /apps/users/:appName?page=1
-Authorization: Bearer <access_token>
-```
-
-**Response:**
-```json
-{
-  "appName": "veta-wallet",
-  "users": [...],
-  "count": 50
-}
+{ "valid": true, "userId": "user-uuid", "email": "user@example.com" }
 ```
 
 ---
 
 ## Admin Endpoints
 
-Todos requieren autenticación.
+All require a logged-in admin's JWT (`Authorization: Bearer <admin_token>`) — enforced by both `authMiddleware` and `adminMiddleware` (checks `role === 'admin'`).
 
-### 1. Get Users
+### Users
 ```
-GET /admin/users?page=1&limit=20&status=verified&search=john
-Authorization: Bearer <admin_token>
-```
-
-**Response:**
-```json
-{
-  "total": 150,
-  "page": 1,
-  "limit": 20,
-  "users": [...]
-}
+GET    /admin/users?page=1&limit=20&status=verified&search=john
+GET    /admin/users/:userId
+DELETE /admin/users/:userId          (soft delete)
 ```
 
-### 2. Get User Details
-```
-GET /admin/users/:userId
-Authorization: Bearer <admin_token>
-```
-
-### 3. Get Verifications
+### Verifications
 ```
 GET /admin/verifications?page=1&limit=20&status=approved
-Authorization: Bearer <admin_token>
+GET /admin/verifications/:verificationId   (full detail incl. submitted images)
 ```
 
-### 4. Get Reports
+### Manual Review Queue
+```
+GET  /admin/manual-reviews?status=pending
+POST /admin/reviews/:caseId/approve   { "notes": "..." }
+POST /admin/reviews/:caseId/reject    { "notes": "..." }
+```
+
+### Connected Apps (API keys)
+```
+GET    /admin/apps                    (list, with linked-user counts)
+POST   /admin/apps                    { "appName": "veta-wallet", "redirectUrls": [...] }
+DELETE /admin/apps/:appId             (revoke)
+GET    /admin/apps/:appName/users
+```
+
+`POST /admin/apps` returns the full API key exactly once — it's shown masked afterward.
+
+### Reports & Logs
 ```
 GET /admin/reports
-Authorization: Bearer <admin_token>
+GET /admin/logs?page=1&limit=50&action=APPROVE_VERIFICATION
 ```
 
-**Response:**
+**Reports response:**
 ```json
 {
-  "today": {
-    "newUsers": 42,
-    "verifications": 38,
-    "appLinked": 35
-  },
+  "today": { "newUsers": 42, "verifications": 38, "appLinked": 35 },
   "overall": {
     "totalUsers": 5000,
     "verifiedUsers": 4800,
@@ -316,18 +263,6 @@ Authorization: Bearer <admin_token>
 }
 ```
 
-### 5. Delete User (Soft Delete)
-```
-DELETE /admin/users/:userId
-Authorization: Bearer <admin_token>
-```
-
-### 6. Get Admin Logs
-```
-GET /admin/logs?page=1&limit=50&action=DELETE_USER
-Authorization: Bearer <admin_token>
-```
-
 ---
 
 ## Error Responses
@@ -336,48 +271,40 @@ Authorization: Bearer <admin_token>
 ```json
 {
   "error": "Validation failed",
-  "details": [
-    {
-      "param": "email",
-      "msg": "Invalid email"
-    }
-  ]
+  "details": [{ "param": "email", "msg": "Invalid email" }]
 }
 ```
 
 ### 401 Unauthorized
 ```json
-{
-  "error": "Invalid or expired token"
-}
+{ "error": "Invalid or expired token" }
+```
+or, for app endpoints:
+```json
+{ "error": "Missing X-API-Key header" }
+```
+
+### 403 Forbidden
+```json
+{ "error": "Admin access required" }
 ```
 
 ### 404 Not Found
 ```json
-{
-  "error": "User not found"
-}
+{ "error": "User not found" }
 ```
 
 ### 500 Internal Server Error
 ```json
-{
-  "error": "Internal Server Error",
-  "status": 500,
-  "timestamp": "2024-07-21T10:30:00Z"
-}
+{ "error": "Internal Server Error", "status": 500, "timestamp": "2024-07-21T10:30:00Z" }
 ```
 
 ---
 
 ## Token Expiration
-- **Access Token**: 24 horas
-- **Refresh Token**: 7 días
-
----
+- **Onboarding token**: 2 hours
+- **Access token**: 24 hours
+- **Refresh token**: 7 days
 
 ## Rate Limiting
-Por implementar en próximas fases.
-
-## Webhooks
-- Veriff webhook para notificar decisiones de verificación
+Not yet implemented — planned for a future phase.

@@ -13,14 +13,6 @@ router.post('/register', [
   body('phone').optional()
 ], handleValidationErrors, AuthController.register);
 
-router.post('/verify-init', [
-  body('userId').isUUID()
-], handleValidationErrors, AuthController.verifyInit);
-
-router.post('/verify-callback', AuthController.verifyCallback);
-
-router.get('/verify-status/:sessionId', AuthController.verifyStatus);
-
 router.post('/login', [
   body('email').isEmail().normalizeEmail(),
   body('password').notEmpty()

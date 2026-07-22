@@ -30,7 +30,8 @@ every connected app — no matter what stack the app is built with.
    `rejected`, via `postMessage`.
 3. **Your backend independently confirms** the result using your app's secret
    API key — never trust the frontend event alone for anything that grants
-   real access. This is the same pattern Stripe, Auth0, and Veriff itself use.
+   real access. This is the same pattern Stripe and Auth0 use for their
+   webhooks/callbacks.
 
 ## 1. Get your API key
 
@@ -132,10 +133,10 @@ liveness / anti-spoofing.
 
 ## Review modes
 
-- **Automatic** — reserved for when a real Veriff (or other document-analysis
-  provider) API key is configured on the GENESIS ID backend.
 - **Manual** — default today. A human admin reviews the submitted photos in
   the GENESIS ID admin panel (`/admin/reviews`) and approves or rejects.
+- **Automatic** — reserved for when an in-house document/liveness analysis
+  step is added to GENESIS ID's own backend. See `VERIFICATION_ENGINE.md`.
   Users are notified by email either way.
 
 ## Files in this package

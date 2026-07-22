@@ -15,7 +15,7 @@ module.exports = (sequelize) => {
         key: 'id'
       }
     },
-    veriffSessionId: {
+    sessionId: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true
@@ -23,10 +23,6 @@ module.exports = (sequelize) => {
     status: {
       type: DataTypes.ENUM('pending', 'approved', 'rejected', 'expired', 'abandoned'),
       defaultValue: 'pending'
-    },
-    verificationToken: {
-      type: DataTypes.STRING,
-      allowNull: true
     },
     documentType: {
       type: DataTypes.ENUM('PASSPORT', 'ID_CARD', 'DRIVERS_LICENSE'),
@@ -71,6 +67,8 @@ module.exports = (sequelize) => {
       type: DataTypes.DATE,
       allowNull: true
     },
+    // Free-form metadata about how the decision was made (e.g. future
+    // in-house document/liveness analysis output)
     rawData: {
       type: DataTypes.JSONB,
       allowNull: true

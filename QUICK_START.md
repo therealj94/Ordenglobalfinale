@@ -64,11 +64,6 @@ JWT_EXPIRES_IN=24h
 JWT_REFRESH_SECRET=tu_refresh_secret_12345
 JWT_REFRESH_EXPIRES_IN=7d
 
-VERIFF_API_KEY=test_key
-VERIFF_SECRET=test_secret
-VERIFF_API_URL=https://stationapi.veriff.com
-VERIFF_CALLBACK_URL=http://localhost:3000/api/auth/verify-callback
-
 FRONTEND_URL=http://localhost:3001
 CORS_ORIGIN=http://localhost:3001,http://localhost:3002,http://localhost:3003
 
@@ -77,6 +72,9 @@ EMAIL_USER=test@gmail.com
 EMAIL_PASSWORD=test
 
 LOG_LEVEL=debug
+
+ADMIN_EMAIL=admin@test.com
+ADMIN_PASSWORD=AdminPassword123
 ```
 
 ```bash
@@ -112,7 +110,6 @@ npm install
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
-NEXT_PUBLIC_VERIFF_URL=https://station.veriff.com
 NODE_ENV=development
 ```
 
@@ -172,24 +169,24 @@ http://localhost:3001
 6. Ves preview y "Continue"
 
 ### **Resultado**
-- Si es sandbox/test: Puede ser "Approved" o "Under Review"
-- **Approved** → ✅ Ves dashboard
-- **Under Review** → ⏳ Admin debe revisar en panel `/admin/reviews`
+- Siempre queda en **"Under Review"** — GENESIS ID revisa manualmente cada caso (no hay aprobación automática todavía, ver `VERIFICATION_ENGINE.md`)
+- Un admin debe entrar a `/admin/reviews` y aprobar o rechazar
+- Al aprobar, el usuario ya puede hacer login normal (email + password)
 
 ---
 
 ## 🖥️ Acceder a Admin Panel
 
-1. Abre: `http://localhost:3001/admin`
-2. **Usuarios de prueba** (crear primero):
+1. Abre: `http://localhost:3001/auth/login`
+2. Ingresa con el admin creado por `npm run seed` (usa `ADMIN_EMAIL`/`ADMIN_PASSWORD` de tu `.env`):
    - Email: `admin@test.com`
    - Password: `AdminPassword123`
-
-3. Verás:
-   - Dashboard con stats
+3. Te redirige a `/admin` con:
+   - Dashboard con stats y gráficas
    - Listar usuarios
-   - Verificaciones
-   - **Manual Reviews** ← Panel donde admin revisa casos
+   - Verificaciones (con visor de fotos)
+   - **Manual Reviews** ← Panel donde el admin aprueba/rechaza casos
+   - **Settings** ← Crear API keys para Veta Wallet y demás apps
 
 ---
 
@@ -282,19 +279,21 @@ PostgreSQL (Docker)                → :5432
 ```
 http://localhost:3001 (Frontend)
     ↓
-POST /api/auth/register (Backend API)
+POST /api/auth/register (Backend API) → onboarding token
     ↓
-INSERT INTO users (PostgreSQL)
+INSERT INTO "Users" (PostgreSQL)
     ↓
 Redirige a /verify
     ↓
-Mostrar KYC (FacialCapture + DocumentCapture)
+FacialCapture (5 ángulos) + DocumentCapture (frente/reverso o pasaporte)
     ↓
-POST /api/auth/verify-init
+POST /api/kyc/submit → crea ManualReviewCase
     ↓
-Retorna JWT tokens
+Admin aprueba en /admin/reviews
     ↓
-Acceso a dashboard
+Usuario hace login (email + password) → JWT real
+    ↓
+Acceso a dashboard y apps del ecosistema
 ```
 
 ---
@@ -307,16 +306,18 @@ Acceso a dashboard
    - Edita `apps/web/components/*.tsx`
    - Cambia clases Tailwind
 
-2. **Conectar Veriff Real**
-   - Consigue API Key en https://veriff.com
-   - Actualiza .env: VERIFF_API_KEY, VERIFF_SECRET
+2. **Automatizar la Decisión** (opcional, por ahora todo es revisión manual)
+   - Ver `VERIFICATION_ENGINE.md` para dónde conectar un análisis
+     automático de documento/liveness propio más adelante
 
 3. **Desplegar a Producción**
    - Backend: AWS ECS
    - Frontend: Vercel/Netlify
    - DB: AWS RDS
+   - Mover fotos de base64-en-Postgres a S3
 
 4. **Conectar Apps**
+   - Crea la API key en Settings, integra `packages/kyc-sdk`
    - Veta Wallet (:3002)
    - My Token Pay (:3003)
 
