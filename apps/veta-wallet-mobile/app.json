@@ -2,7 +2,7 @@
   "expo": {
     "name": "Veta Wallet",
     "slug": "veta-wallet",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "vetawallet",
@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.ordenglobal.vetawallet",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#021B1C"
@@ -34,10 +34,7 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 23,
-            "compileSdkVersion": 36,
-            "targetSdkVersion": 36,
-            "buildToolsVersion": "36.0.0"
+            "minSdkVersion": 23
           }
         }
       ]
