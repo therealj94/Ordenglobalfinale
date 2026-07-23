@@ -1,4 +1,4 @@
-# Veta Wallet — App móvil (Expo SDK 51)
+# Veta Wallet — App móvil (Expo SDK 54)
 
 Billetera cripto de **Orden Global** en React Native + Expo. La billetera en sí
 (precios, balances, transacciones) es de **demostración**, pero la **identidad
@@ -17,11 +17,11 @@ son reales, provienen del backend y sirven en todo el ecosistema Orden Global.
   completo desde `GET /auth/me` al abrir la app, con refresco automático de token.
 
 ## 📱 Compatibilidad Android
-`minSdkVersion 23` → **Android 6.0+** (cubre >99% de dispositivos Android activos hoy).
-React Native 0.74 (usado por Expo SDK 51) ya no soporta Android 5.0 (API 21) internamente — bajar de API 23
-requeriría una versión de Expo/React Native de 2022-2023 sin soporte activo, con más riesgo de bugs y
-sin varias librerías modernas. El mínimo queda fijado explícitamente vía `expo-build-properties` en `app.json`,
-así que no depende del valor por defecto de ninguna herramienta.
+`minSdkVersion 24` → **Android 7.0+** (cubre >98% de dispositivos Android activos hoy).
+React Native 0.81 (usado por Expo SDK 54) trae su motor Hermes precompilado solo a partir de API 24 —
+bajar ese mínimo hace fallar la compilación nativa (`CXX1214 ... library was built for 24`), no es opcional.
+El mínimo queda fijado explícitamente vía `expo-build-properties` en `app.json`, así que no depende del
+valor por defecto de ninguna herramienta.
 
 ## ✨ Incluye
 - Animación de arranque con el logo cargando la billetera (varios segundos).
@@ -46,7 +46,7 @@ npx expo start
 ```
 - Escanea el QR con la app **Expo Go** (Android/iOS), o pulsa `a` para abrir en un emulador Android / `i` para iOS.
 
-> Requiere Node 18+. La primera vez, `npm install` descarga las dependencias de Expo SDK 51.
+> Requiere Node 18+. La primera vez, `npm install` descarga las dependencias de Expo SDK 54.
 
 ## 📦 Generar APK descargable (Android)
 Con **EAS Build** (recomendado, en la nube — así se generó el APK original):
@@ -58,7 +58,7 @@ eas build -p android --profile preview
 ```
 El perfil `preview` (en `eas.json`) genera un **.apk** instalable. Al terminar,
 EAS imprime un **enlace de descarga** (y queda también en expo.dev → tu proyecto →
-Builds). Ese `.apk` se instala directo en cualquier Android 6.0+.
+Builds). Ese `.apk` se instala directo en cualquier Android 7.0+.
 
 > El APK no se puede compilar dentro de este entorno automatizado porque no trae
 > el Android SDK ni la sesión de tu cuenta Expo; EAS Build lo hace en la nube con
