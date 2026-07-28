@@ -23,6 +23,10 @@ router.post('/refresh', [
   body('refreshToken').notEmpty()
 ], handleValidationErrors, AuthController.refresh);
 
+router.post('/exchange-onboarding', authLimiter, [
+  body('onboardingToken').notEmpty()
+], handleValidationErrors, AuthController.exchangeOnboarding);
+
 router.post('/forgot-password', passwordResetLimiter, [
   body('email').isEmail().normalizeEmail()
 ], handleValidationErrors, AuthController.forgotPassword);

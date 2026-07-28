@@ -138,6 +138,70 @@ class AuthController {
     }
   }
 
+  /**
+   * Exchanges the short-lived onboarding token issued at registration for a
+   * real session, but only once that user is actually verified.
+   *
+   * This is what lets an ecosystem app (Veta Wallet, My Token Pay) finish the
+   * "register -> verify identity -> you're in" flow without asking the user to
+   * type their password a second time the moment they got approved. The
+   * onboarding token already proves they own this userId, and the gate below
+   * means it can never mint a session for an unverified or deactivated account.
+   */
+  async exchangeOnboarding(req, res, next) {
+    try {
+      const { onboardingToken } = req.body;
+
+      let decoded;
+      try {
+        decoded = JWTService.verifyOnboardingToken(onboardingToken);
+      } catch (err) {
+        return res.status(401).json({ error: 'Invalid or expired onboarding token' });
+      }
+
+      const user = await User.findByPk(decoded.userId);
+      if (!user || !user.isActive) {
+        return res.status(401).json({ error: 'User not found or deactivated' });
+      }
+
+      if (user.status !== 'verified') {
+        return res.status(403).json({
+          error: 'User not verified. Complete identity verification first.',
+          status: user.status
+        });
+      }
+
+      const accessToken = JWTService.generateAccessToken(user.id, user.email);
+      const refreshToken = JWTService.generateRefreshToken(user.id);
+
+      await LoginToken.create({
+        userId: user.id,
+        token: accessToken,
+        refreshToken,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        refreshExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      });
+
+      await user.update({ lastLogin: new Date() });
+
+      res.json({
+        accessToken,
+        refreshToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          status: user.status,
+          role: user.role,
+          gid: user.gid
+        }
+      });
+    } catch (error) {
+      console.error('Exchange onboarding error:', error);
+      res.status(500).json({ error: 'Failed to create session' });
+    }
+  }
+
   async me(req, res, next) {
     try {
       const user = await User.findByPk(req.user.userId, {

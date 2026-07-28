@@ -60,6 +60,30 @@ export function refresh(refreshToken) {
   return request('/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) });
 }
 
+// Real KYC state straight from the engine. The app checks this itself instead
+// of trusting the deep link alone — browsers drop app-scheme redirects that
+// weren't triggered by a tap, so the callback can simply never arrive even
+// though verification succeeded.
+export function kycStatus({ userId, token }) {
+  return request(`/kyc/status/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+}
+
+// Turns the registration's onboarding token into a real session, but only
+// once GENESIS ID has actually verified the user.
+export function exchangeOnboarding(onboardingToken) {
+  return request('/auth/exchange-onboarding', { method: 'POST', body: JSON.stringify({ onboardingToken }) });
+}
+
+// Hands GENESIS ID the wallet address this app knows the user by, so the GID
+// can be resolved to their Veta Wallet account across the ecosystem.
+export function linkAddress({ accessToken, address }) {
+  return request('/apps/my-address', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ appName: APP_NAME, address }),
+  });
+}
+
 // Public verification page for a GID — what the passport card's QR encodes,
 // so anyone can scan it to confirm the identity against GENESIS ID.
 export function verifyGidUrl(gid) {

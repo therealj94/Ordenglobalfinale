@@ -17,6 +17,13 @@ interface KYCFlowProps {
   userId: string;
   onSuccess?: (verification: any) => void;
   onStatusChange?: (status: 'approved' | 'pending' | 'rejected', data: any) => void;
+  /**
+   * Rendered inside an ecosystem app's flow rather than on genesisid.online.
+   * Embedded callers own every terminal screen (and the way back to their own
+   * app), so this component must never offer its own "go to dashboard" exits —
+   * a native-app user has no dashboard to go to and would be stranded there.
+   */
+  embedded?: boolean;
 }
 
 type Step = 'info' | 'aml' | 'facial' | 'document' | 'submitting' | 'processing' | 'review' | 'completed' | 'failed';
@@ -27,7 +34,7 @@ type Step = 'info' | 'aml' | 'facial' | 'document' | 'submitting' | 'processing'
 const POLL_INTERVAL_MS = 4000;
 const MAX_POLL_MS = 5 * 60 * 1000;
 
-export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowProps) {
+export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = false }: KYCFlowProps) {
   const router = useRouter();
   const { submitKYC, getKYCStatus, loading } = useVerification();
   const [step, setStep] = useState<Step>('info');
@@ -87,8 +94,11 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
       }
     }
     // Gave up waiting on-screen; the backend keeps working on it and will
-    // email the user once it resolves either way.
+    // email the user once it resolves either way. The caller still has to be
+    // told — without this an embedded app never hears back at all and just
+    // sits on this screen forever.
     setStep('review');
+    onStatusChange?.('pending', { verificationId: undefined });
   };
 
   const handleDocumentComplete = async (result: DocumentCaptureResult) => {
@@ -127,8 +137,10 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
         return;
       }
 
-      toast.error(error?.response?.data?.error || 'Failed to submit verification');
+      const message = error?.response?.data?.error || 'Failed to submit verification';
+      toast.error(message);
       setStep('failed');
+      onStatusChange?.('rejected', { rejectionReason: message });
     }
   };
 
@@ -320,12 +332,14 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
                 </p>
               </div>
 
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
-              >
-                Go to Dashboard
-              </button>
+              {!embedded && (
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                >
+                  Go to Dashboard
+                </button>
+              )}
             </div>
           )}
 
@@ -349,12 +363,14 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
                 </div>
               )}
 
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="inline-block bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition transform hover:scale-105"
-              >
-                Go to Dashboard
-              </button>
+              {!embedded && (
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="inline-block bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition transform hover:scale-105"
+                >
+                  Go to Dashboard
+                </button>
+              )}
             </div>
           )}
 
@@ -381,12 +397,14 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange }: KYCFlowPr
                   Try Again
                 </button>
 
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
-                >
-                  Go Back
-                </button>
+                {!embedded && (
+                  <button
+                    onClick={() => router.push('/dashboard')}
+                    className="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
+                  >
+                    Go Back
+                  </button>
+                )}
               </div>
             </div>
           )}

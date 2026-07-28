@@ -6,7 +6,8 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { C, G } from '../theme';
 import { Header, Button3D, Card, hap, useToast } from '../ui';
-import { WALLET_SEED } from '../data';
+import { useUser } from '../user';
+import { WALLET_SEED, WALLET_ADDRESS } from '../data';
 import * as api from '../api';
 
 // ---------------- KYC — verificación real vía el motor GENESIS ID ----------------
@@ -15,9 +16,60 @@ import * as api from '../api';
 // abre esa verificación como un servicio y espera el resultado final.
 export function Kyc({ nav, params }) {
   const { userId, onboardingToken } = params || {};
-  const [step, setStep] = useState('intro'); // intro | opening | done | review | failed
+  const [step, setStep] = useState('intro'); // intro | opening | checking | done | review | failed
   const [failMsg, setFailMsg] = useState('');
   const toast = useToast();
+  const { setSessionFromLogin, gid } = useUser();
+
+  /**
+   * Asks GENESIS ID what actually happened, instead of believing the deep
+   * link. Browsers silently drop app-scheme redirects that no tap triggered,
+   * so the callback often never fires even though verification went through —
+   * this is what makes the app pick the identity up either way.
+   */
+  const resolveStatus = async ({ attempts = 6 } = {}) => {
+    setStep('checking');
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const res = await api.kycStatus({ userId, token: onboardingToken });
+
+        if (res.status === 'approved') {
+          // Approved means the account is verified, so the onboarding token
+          // can now be traded for a real session — that's what pulls the GID,
+          // name and passport photo into the app.
+          try {
+            const session = await api.exchangeOnboarding(onboardingToken);
+            await api.saveSession(session);
+            await setSessionFromLogin(session);
+          } catch (e) {
+            // Verified but the session couldn't be minted (e.g. offline). The
+            // user can still sign in normally; don't block the happy path.
+          }
+          setStep('done');
+          return;
+        }
+        if (res.status === 'rejected') {
+          setFailMsg(res.rejectionReason || 'Tu verificación no pudo completarse. Intenta de nuevo con mejor iluminación y un documento válido.');
+          setStep('failed');
+          return;
+        }
+        if (res.status === 'pending') {
+          setStep('review');
+          return;
+        }
+        // still 'processing' — the engine takes about a minute to decide
+      } catch (e) {
+        if (e.status === 404) {
+          // Never submitted anything — they backed out before finishing.
+          setStep('intro');
+          toast('Aún no completaste tu verificación.');
+          return;
+        }
+      }
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+    setStep('review');
+  };
 
   const startVerification = async () => {
     if (!userId || !onboardingToken) {
@@ -29,21 +81,10 @@ export function Kyc({ nav, params }) {
     try {
       const redirectUrl = Linking.createURL('kyc-callback');
       const url = api.kycVerifyUrl({ userId, onboardingToken, returnUrl: redirectUrl });
-      const result = await WebBrowser.openAuthSessionAsync(url, redirectUrl);
-
-      if (result.type === 'success' && result.url) {
-        const { queryParams } = Linking.parse(result.url);
-        const status = queryParams?.status;
-        if (status === 'approved') setStep('done');
-        else if (status === 'pending') setStep('review');
-        else {
-          setFailMsg('Tu verificación no pudo completarse. Intenta de nuevo con mejor iluminación y un documento válido.');
-          setStep('failed');
-        }
-      } else {
-        setStep('intro');
-        toast('Verificación cancelada.');
-      }
+      await WebBrowser.openAuthSessionAsync(url, redirectUrl);
+      // However that window closed — deep link, X button, swipe away — the
+      // engine is the source of truth, so always go and ask.
+      await resolveStatus();
     } catch (e) {
       setFailMsg('No se pudo abrir la verificación. Revisa tu conexión e intenta de nuevo.');
       setStep('failed');
@@ -58,13 +99,27 @@ export function Kyc({ nav, params }) {
         <Text style={styles.dim}>Completa el proceso en la ventana que se abrió…</Text>
       </View>
     );
+  if (step === 'checking')
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={C.gold} />
+        <Text style={[styles.bigTitle, { marginTop: 22 }]}>Confirmando tu identidad</Text>
+        <Text style={styles.dim}>Estamos recibiendo tu GENESIS ID…</Text>
+      </View>
+    );
   if (step === 'done')
     return (
       <View style={styles.center}>
         <View style={styles.checkBadge}><Ionicons name="checkmark" size={52} color={C.up} /></View>
         <Text style={styles.bigTitle}>Identidad verificada</Text>
-        <Text style={[styles.dim, { marginBottom: 26 }]}>Bienvenido a Orden Global</Text>
-        <Button3D title="Crear mi billetera" onPress={() => nav.go('seed')} style={{ width: 240 }} />
+        <Text style={styles.dim}>Bienvenido a Orden Global</Text>
+        {gid ? (
+          <View style={styles.gidPill}>
+            <Ionicons name="shield-checkmark" size={14} color={C.up} />
+            <Text style={styles.gidPillTxt}>{gid}</Text>
+          </View>
+        ) : null}
+        <Button3D title="Crear mi billetera" onPress={() => nav.go('seed')} style={{ width: 240, marginTop: 26 }} />
       </View>
     );
   if (step === 'review')
@@ -101,6 +156,11 @@ export function Kyc({ nav, params }) {
           </Card>
         ))}
         <Button3D title="Iniciar verificación" onPress={startVerification} style={{ marginTop: 12 }} />
+        {/* Escape hatch for the case where the browser closed without handing
+            control back — the identity may already be waiting on the engine. */}
+        <Pressable onPress={() => { hap(); resolveStatus({ attempts: 2 }); }} style={{ marginTop: 16 }}>
+          <Text style={styles.alreadyDone}>Ya completé mi verificación</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -110,6 +170,21 @@ export function Kyc({ nav, params }) {
 export function Seed({ nav }) {
   const [revealed, setRevealed] = useState(false);
   const [ack, setAck] = useState(false);
+  const { session } = useUser();
+
+  // Once the wallet exists, tell GENESIS ID which address this app knows the
+  // user by, so their GID resolves to a Veta Wallet account ecosystem-wide.
+  const finish = async () => {
+    if (session?.accessToken) {
+      try {
+        await api.linkAddress({ accessToken: session.accessToken, address: WALLET_ADDRESS });
+      } catch (e) {
+        // Not worth blocking entry to the wallet — it re-links on next launch.
+      }
+    }
+    nav.go('home');
+  };
+
   return (
     <View style={{ flex: 1, paddingTop: 6 }}>
       <Header title="Frase de recuperación" onBack={() => nav.go('kyc')} />
@@ -126,7 +201,7 @@ export function Seed({ nav }) {
           <View style={[styles.checkbox, ack && { backgroundColor: C.gold, borderColor: C.gold }]}>{ack && <Ionicons name="checkmark" size={14} color={C.darkText} />}</View>
           <Text style={styles.ackTxt}>Ya guardé mi frase en un lugar seguro.</Text>
         </Pressable>
-        <Button3D title="Continuar a mi billetera" disabled={!revealed || !ack} onPress={() => nav.go('home')} />
+        <Button3D title="Continuar a mi billetera" disabled={!revealed || !ack} onPress={finish} />
       </ScrollView>
     </View>
   );
@@ -190,4 +265,7 @@ const styles = StyleSheet.create({
   ackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: C.line2, alignItems: 'center', justifyContent: 'center' },
   ackTxt: { color: C.txt2, fontSize: 13, flex: 1 },
+  alreadyDone: { color: C.gold, fontWeight: '600', fontSize: 13.5, textAlign: 'center' },
+  gidPill: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(62,217,160,0.12)', borderWidth: 1, borderColor: 'rgba(62,217,160,0.35)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8, marginTop: 14 },
+  gidPillTxt: { color: C.goldLt, fontWeight: '700', fontSize: 14, letterSpacing: 0.5 },
 });

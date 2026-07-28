@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import KYCFlow from '@/components/KYCFlow';
+import { upgradeOnboardingSession } from '@/lib/onboardingSession';
 import { FiAlertCircle } from 'react-icons/fi';
 
 export default function VerifyPage() {
@@ -53,7 +54,12 @@ export default function VerifyPage() {
       <div className="min-h-screen bg-gray-50 py-8">
         <KYCFlow
           userId={userId as string}
-          onSuccess={(verification) => {
+          onSuccess={async () => {
+            // A user who just registered is still holding the short-lived
+            // onboarding token, which only authorizes the KYC endpoints — the
+            // dashboard would bounce them straight back to login. Now that
+            // they're verified, trade it for a real session first.
+            await upgradeOnboardingSession();
             router.push('/dashboard');
           }}
         />
