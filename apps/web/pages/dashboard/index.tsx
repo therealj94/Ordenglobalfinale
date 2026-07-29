@@ -9,6 +9,7 @@ import GenesisIDCard from '@/components/GenesisIDCard';
 import IdCardPhotoCapture from '@/components/IdCardPhotoCapture';
 import SignaturePad from '@/components/SignaturePad';
 import OpenInEcosystemApp from '@/components/OpenInEcosystemApp';
+import { upgradeOnboardingSession } from '@/lib/onboardingSession';
 import {
   FiCheckCircle,
   FiClock,
@@ -41,7 +42,18 @@ export default function DashboardPage() {
         router.replace('/auth/login');
         return;
       }
-      const profile = user || (await fetchProfile());
+
+      let profile = user || (await fetchProfile());
+
+      // Arriving straight from a just-approved verification, the browser is
+      // still holding the onboarding token — which this page's /auth/me call
+      // rejects by design. Bouncing to login there tells a user who just
+      // finished verifying that they aren't welcome. Trade it for a real
+      // session and try once more before giving up on them.
+      if (!profile && (await upgradeOnboardingSession())) {
+        profile = await fetchProfile();
+      }
+
       if (!profile) {
         router.replace('/auth/login');
         return;

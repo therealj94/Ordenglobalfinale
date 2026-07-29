@@ -7,6 +7,7 @@ import FacialCapture from './FacialCapture';
 import DocumentCapture, { DocumentCaptureResult } from './DocumentCapture';
 import ReviewProgress from './ReviewProgress';
 import { useT, LanguageToggle } from '@/lib/i18n';
+import { upgradeOnboardingSession } from '@/lib/onboardingSession';
 import {
   FiCheckCircle,
   FiLoader,
@@ -46,6 +47,7 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [gid, setGid] = useState<string | null>(null);
   const [longWait, setLongWait] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const steps = [
     t('kyc.step.start'),
@@ -203,6 +205,21 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
       toast.error(message);
       setStep('failed');
       onStatusChange?.('rejected', { rejectionReason: message });
+    }
+  };
+
+  /**
+   * Right after approval the browser is still holding the onboarding token,
+   * which only opens the KYC endpoints — the dashboard rejects it and sends
+   * the user back to login. Trading it for a real session first is what makes
+   * "go to dashboard" actually land there.
+   */
+  const goToDashboard = async () => {
+    setLeaving(true);
+    try {
+      await upgradeOnboardingSession();
+    } finally {
+      router.push('/dashboard');
     }
   };
 
@@ -409,10 +426,11 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
 
               {!embedded && (
                 <button
-                  onClick={() => router.push('/dashboard')}
-                  className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                  onClick={goToDashboard}
+                  disabled={leaving}
+                  className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-60 transition"
                 >
-                  Go to Dashboard
+                  {leaving ? t('common.loading') : t('kyc.goToDashboard')}
                 </button>
               )}
             </div>
@@ -438,10 +456,11 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
 
               {!embedded && (
                 <button
-                  onClick={() => router.push('/dashboard')}
-                  className="inline-block bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition transform hover:scale-105"
+                  onClick={goToDashboard}
+                  disabled={leaving}
+                  className="inline-block bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 disabled:opacity-60 transition"
                 >
-                  Go to Dashboard
+                  {leaving ? t('common.loading') : t('kyc.goToDashboard')}
                 </button>
               )}
             </div>
@@ -472,10 +491,10 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
 
                 {!embedded && (
                   <button
-                    onClick={() => router.push('/dashboard')}
+                    onClick={goToDashboard}
                     className="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
                   >
-                    Go Back
+                    {t('kyc.goToDashboard')}
                   </button>
                 )}
               </div>

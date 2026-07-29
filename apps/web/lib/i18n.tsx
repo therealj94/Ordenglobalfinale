@@ -107,6 +107,7 @@ const DICT: Record<string, { es: string; en: string }> = {
     es: 'Para retomar tu verificación necesitamos confirmar que eres tú. Entra con tu correo y contraseña.',
     en: 'To pick your verification back up we need to confirm it\'s you. Sign in with your email and password.'
   },
+  'kyc.goToDashboard': { es: 'Ir a mi panel', en: 'Go to Dashboard' },
   'kyc.resume.title': { es: 'Retomando donde quedaste…', en: 'Picking up where you left off...' },
 
   // — Facial capture —
