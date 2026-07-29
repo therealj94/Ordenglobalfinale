@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import GenesisIDCard from '@/components/GenesisIDCard';
 import IdCardPhotoCapture from '@/components/IdCardPhotoCapture';
 import SignaturePad from '@/components/SignaturePad';
+import OpenInEcosystemApp from '@/components/OpenInEcosystemApp';
 import {
   FiCheckCircle,
   FiClock,
@@ -148,17 +149,20 @@ export default function DashboardPage() {
             </div>
 
             {user.idCardPhoto ? (
-              <GenesisIDCard
-                fullName={user.fullName || user.email}
-                gid={user.gid}
-                nationality={user.nationality}
-                idCardPhoto={user.idCardPhoto}
-                signature={user.signature}
-                dateOfBirth={user.dateOfBirth}
-                issuedAt={user.gidIssuedAt}
-                expiresAt={user.gidExpiresAt}
-                allowDownload
-              />
+              <>
+                <GenesisIDCard
+                  fullName={user.fullName || user.email}
+                  gid={user.gid}
+                  nationality={user.nationality}
+                  idCardPhoto={user.idCardPhoto}
+                  signature={user.signature}
+                  dateOfBirth={user.dateOfBirth}
+                  issuedAt={user.gidIssuedAt}
+                  expiresAt={user.gidExpiresAt}
+                  allowDownload
+                />
+                <OpenInEcosystemApp gid={user.gid} />
+              </>
             ) : pendingPhoto ? (
               <div className="bg-white rounded-xl shadow p-8 text-center">
                 <h3 className="text-lg font-bold text-gray-900 mb-1">Now, sign your GENESIS ID</h3>

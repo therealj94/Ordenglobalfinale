@@ -139,6 +139,58 @@ class AuthController {
   }
 
   /**
+   * Issues a verification session for someone who already has a GENESIS ID
+   * account but hasn't finished (or needs to redo) identity verification.
+   *
+   * Without this, an existing account was a dead end in an ecosystem app: the
+   * KYC flow needs a userId + onboarding token, and those were only ever
+   * handed out at registration, so an unverified user who already signed up
+   * could log in, get told "not verified", and have no way to fix it.
+   *
+   * Gated on the real password, so it can't be used to enumerate accounts or
+   * to start verification on someone else's identity.
+   */
+  async verificationSession(req, res, next) {
+    try {
+      const { email, password } = req.body;
+
+      const user = await User.findOne({ where: { email: email.toLowerCase() } });
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const passwordMatch = await PasswordService.comparePassword(password, user.password);
+      if (!passwordMatch) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      if (!user.isActive) {
+        return res.status(403).json({ error: 'This account has been deactivated. Contact support.' });
+      }
+
+      // Already verified — there's nothing to verify, so say so plainly and
+      // let the caller send them through a normal login instead.
+      if (user.status === 'verified') {
+        return res.status(409).json({
+          error: 'This account is already verified. Sign in normally.',
+          status: user.status,
+          gid: user.gid
+        });
+      }
+
+      res.json({
+        userId: user.id,
+        email: user.email,
+        status: user.status,
+        onboardingToken: JWTService.generateOnboardingToken(user.id)
+      });
+    } catch (error) {
+      console.error('Verification session error:', error);
+      res.status(500).json({ error: 'Failed to start verification' });
+    }
+  }
+
+  /**
    * Exchanges the short-lived onboarding token issued at registration for a
    * real session, but only once that user is actually verified.
    *

@@ -74,6 +74,13 @@ export function exchangeOnboarding(onboardingToken) {
   return request('/auth/exchange-onboarding', { method: 'POST', body: JSON.stringify({ onboardingToken }) });
 }
 
+// For someone who already has a GENESIS ID account but never finished
+// verification: re-opens the KYC flow for that existing identity instead of
+// making them create a second account they don't need.
+export function verificationSession({ email, password }) {
+  return request('/auth/verification-session', { method: 'POST', body: JSON.stringify({ email, password }) });
+}
+
 // Hands GENESIS ID the wallet address this app knows the user by, so the GID
 // can be resolved to their Veta Wallet account across the ecosystem.
 export function linkAddress({ accessToken, address }) {

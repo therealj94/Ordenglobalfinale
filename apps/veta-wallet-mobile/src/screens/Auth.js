@@ -7,6 +7,7 @@ import { C } from '../theme';
 import { Logo, Button3D, hap, useToast } from '../ui';
 import { useUser } from '../user';
 import * as api from '../api';
+import { WALLET_ADDRESS } from '../data';
 
 export default function Auth({ nav }) {
   const toast = useToast();
@@ -20,8 +21,9 @@ export default function Auth({ nav }) {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [needsVerification, setNeedsVerification] = useState(false);
 
-  const switchTab = (k) => { hap(); setTab(k); setError(''); };
+  const switchTab = (k) => { hap(); setTab(k); setError(''); setNeedsVerification(false); };
 
   const submit = async () => {
     setError('');
@@ -34,6 +36,10 @@ export default function Auth({ nav }) {
         const data = await api.login({ email: email.trim(), password });
         await api.saveSession(data);
         await setSessionFromLogin(data);
+        // Someone signing in on a new device already has their GENESIS ID —
+        // linking here is what actually connects it to Veta Wallet, since
+        // they never pass through wallet creation again.
+        api.linkAddress({ accessToken: data.accessToken, address: WALLET_ADDRESS }).catch(() => {});
         toast(`Bienvenido, ${data.user.fullName || data.user.email}`);
         nav.go('home');
       } else {
@@ -41,6 +47,23 @@ export default function Auth({ nav }) {
         toast('Cuenta creada. Verifica tu identidad para continuar.');
         nav.go('kyc', { userId: data.userId, onboardingToken: data.onboardingToken });
       }
+    } catch (e) {
+      // An existing account that never finished verification is the one login
+      // failure the user can actually fix from here — offer that instead of a
+      // dead end telling them they're not verified.
+      if (login && /verif/i.test(e.message)) setNeedsVerification(true);
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const continueVerification = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      const data = await api.verificationSession({ email: email.trim(), password });
+      nav.go('kyc', { userId: data.userId, onboardingToken: data.onboardingToken });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -120,6 +143,13 @@ export default function Auth({ nav }) {
 
             {!!error && <Text style={styles.error}>{error}</Text>}
 
+            {needsVerification && !busy && (
+              <Pressable onPress={() => { hap(); continueVerification(); }} style={styles.verifyCta}>
+                <Ionicons name="shield-checkmark" size={17} color={C.gold} />
+                <Text style={styles.verifyCtaTxt}>Continuar mi verificación con GENESIS ID</Text>
+              </Pressable>
+            )}
+
             {busy ? (
               <View style={[styles.loadingBtn, { marginTop: 8 }]}>
                 <ActivityIndicator color={C.darkText} />
@@ -180,6 +210,8 @@ const styles = StyleSheet.create({
   forgot: { color: C.gold, fontWeight: '600', fontSize: 13, textAlign: 'right', marginVertical: 14 },
   terms: { color: C.txt2, fontSize: 12, marginVertical: 14, lineHeight: 17 },
   error: { color: '#F19A9A', fontSize: 12.5, marginBottom: 12, lineHeight: 17 },
+  verifyCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(201,169,97,0.12)', borderWidth: 1, borderColor: 'rgba(201,169,97,0.45)', borderRadius: 13, paddingVertical: 13, marginBottom: 12 },
+  verifyCtaTxt: { color: C.goldLt, fontWeight: '700', fontSize: 13 },
   loadingBtn: { height: 53, borderRadius: 17, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
   divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 16 },
   dline: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },

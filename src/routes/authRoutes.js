@@ -27,6 +27,11 @@ router.post('/exchange-onboarding', authLimiter, [
   body('onboardingToken').notEmpty()
 ], handleValidationErrors, AuthController.exchangeOnboarding);
 
+router.post('/verification-session', authLimiter, [
+  body('email').isEmail().normalizeEmail(),
+  body('password').notEmpty()
+], handleValidationErrors, AuthController.verificationSession);
+
 router.post('/forgot-password', passwordResetLimiter, [
   body('email').isEmail().normalizeEmail()
 ], handleValidationErrors, AuthController.forgotPassword);
