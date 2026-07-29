@@ -2,7 +2,8 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { FiUpload, FiCheck, FiRotateCw, FiFileText, FiCamera, FiCameraOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { DocumentType } from '@/hooks/useVerification';
-import { analyzeDocFrame, isDocFrameGood, DocFrameMetrics } from '@/lib/docQuality';
+import { analyzeDocFrame, isDocFrameGood, docFrameHint, DocFrameMetrics } from '@/lib/docQuality';
+import { useT } from '@/lib/i18n';
 
 export interface DocumentCaptureResult {
   documentType: DocumentType;
@@ -23,12 +24,18 @@ const DOC_OPTIONS: { type: DocumentType; label: string; needsBack: boolean }[] =
   { type: 'DRIVERS_LICENSE', label: "🚗 Driver's License", needsBack: true }
 ];
 
-const STABLE_HOLD_MS = 900; // frame must stay "good" this long before auto-capture
-const MANUAL_FALLBACK_AFTER_MS = 6000; // offer a manual button if auto-capture is slow
+// Auto-capture used to be able to fire about a second after the camera
+// opened — before anyone could physically get the document into the frame —
+// and whatever it grabbed then went on to fail the server's quality check.
+// Nothing here can align the document for the user, so the timings give them
+// room to do it and the manual button is available throughout.
+const ALIGN_GRACE_MS = 3500; // no auto-capture at all until this has passed
+const STABLE_HOLD_MS = 1800; // and the frame must then stay good this long
 const DETECTION_INTERVAL_MS = 150; // ~6-7 checks/sec
 const SHOW_DEBUG = process.env.NODE_ENV !== 'production';
 
 export default function DocumentCapture({ onCapture, onError }: DocumentCaptureProps) {
+  const t = useT();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null); // full-res capture
@@ -47,7 +54,8 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
-  const [showManualFallback, setShowManualFallback] = useState(false);
+  const [showManualFallback, setShowManualFallback] = useState(true);
+  const [canAutoCapture, setCanAutoCapture] = useState(false);
   const [metrics, setMetrics] = useState<DocFrameMetrics | null>(null);
 
   const selectedDoc = DOC_OPTIONS.find((d) => d.type === documentType);
@@ -137,13 +145,17 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
     }
   }, [useCamera, stream, currentImage]);
 
-  // Reset the hold timer & fallback whenever we (re)enter live camera mode.
+  // Reset the hold timer whenever we (re)enter live camera mode, and start the
+  // window in which auto-capture stays disabled so the document can be lined
+  // up first. The manual button is shown from the start rather than appearing
+  // only once auto-capture has struggled — the user knows when it's aligned.
   useEffect(() => {
     if (!useCamera || currentImage) return;
     holdStartRef.current = null;
     setHoldProgress(0);
-    setShowManualFallback(false);
-    const t = setTimeout(() => setShowManualFallback(true), MANUAL_FALLBACK_AFTER_MS);
+    setShowManualFallback(true);
+    setCanAutoCapture(false);
+    const t = setTimeout(() => setCanAutoCapture(true), ALIGN_GRACE_MS);
     return () => clearTimeout(t);
   }, [useCamera, currentImage, side]);
 
@@ -168,7 +180,7 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
         const m = analyzeDocFrame(video, sampleCanvas);
         if (m) {
           setMetrics(m);
-          if (isDocFrameGood(m)) {
+          if (isDocFrameGood(m) && canAutoCapture) {
             if (holdStartRef.current === null) holdStartRef.current = now;
             const elapsed = now - holdStartRef.current;
             setHoldProgress(Math.min(100, (elapsed / STABLE_HOLD_MS) * 100));
@@ -191,7 +203,7 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [useCamera, currentImage, cameraLoading, cameraError, capturePhoto]);
+  }, [useCamera, currentImage, cameraLoading, cameraError, capturePhoto, canAutoCapture]);
 
   // Clean up camera on unmount
   useEffect(() => () => stopCamera(), [stopCamera]);
@@ -349,9 +361,15 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
                   <div className="bg-black bg-opacity-60 rounded-full px-6 py-3 text-center text-white flex items-center gap-3">
                     <FiFileText size={22} />
                     <div className="text-left">
-                      <p className="font-bold leading-tight">Capture {side === 'front' ? 'Front' : 'Back'}</p>
+                      <p className="font-bold leading-tight">
+                        {side === 'front' ? t('doc.side.front') : t('doc.side.back')}
+                      </p>
                       <p className="text-blue-200 text-xs">
-                        {holdProgress > 0 ? 'Hold still...' : 'Fit the document inside the frame'}
+                        {holdProgress > 0
+                          ? t('doc.hint.hold')
+                          : !canAutoCapture
+                          ? t('doc.hint.align')
+                          : t(`doc.hint.${docFrameHint(metrics)}`)}
                       </p>
                     </div>
                   </div>
@@ -364,14 +382,14 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
                       <div className="w-24 bg-gray-600 h-2 rounded-full overflow-hidden">
                         <div className="bg-green-400 h-2 rounded-full" style={{ width: `${holdProgress}%` }} />
                       </div>
-                      Hold still...
+                      {t('doc.hint.hold')}
                     </div>
                   </div>
                 )}
 
                 {SHOW_DEBUG && metrics && (
                   <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-green-300 text-[10px] font-mono px-2 py-1 rounded pointer-events-none">
-                    bright {metrics.brightness.toFixed(0)} sharp {metrics.sharpness.toFixed(1)}
+                    bright {metrics.brightness.toFixed(0)} sharp {metrics.sharpness.toFixed(1)} fill {metrics.fill.toFixed(1)}
                   </div>
                 )}
               </>
@@ -413,7 +431,7 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
                   className="w-full bg-gray-700 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition flex items-center justify-center"
                 >
                   <FiCamera className="mr-2" />
-                  Having trouble? Capture Anyway
+                  {t('doc.captureNow')}
                 </button>
               )}
               <button

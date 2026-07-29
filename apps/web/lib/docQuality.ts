@@ -12,6 +12,16 @@
 export interface DocFrameMetrics {
   brightness: number; // 0-255 mean luminance of the sampled region
   sharpness: number; // mean local gradient magnitude (focus proxy)
+  /**
+   * How different the guide region is from the frame just outside it.
+   *
+   * Brightness and sharpness alone say nothing about whether a document is
+   * actually in the box — a lit desk or a patterned surface satisfies both,
+   * which is why capture used to fire within a second of the camera opening,
+   * before anyone could line anything up. A card or passport page placed in
+   * the guide stands out from its surroundings; empty background doesn't.
+   */
+  fill: number;
 }
 
 // A frame is considered "good enough" to auto-capture when it is neither too
@@ -19,6 +29,10 @@ export interface DocFrameMetrics {
 export const DOC_MIN_BRIGHTNESS = 45;
 export const DOC_MAX_BRIGHTNESS = 248;
 export const DOC_MIN_SHARPNESS = 12;
+// Tuned to be reachable with an ordinary ID on an ordinary background rather
+// than to be clever: the manual button is always there, so the cost of being
+// slightly too strict is a tap, while too lenient means a wasted attempt.
+export const DOC_MIN_FILL = 10;
 
 const SAMPLE_W = 160;
 const SAMPLE_H = 100;
@@ -85,13 +99,49 @@ export function analyzeDocFrame(
   }
   const sharpness = count ? gradSum / count : 0;
 
-  return { brightness, sharpness };
+  // How much the middle of the guide differs from its outer ring. A document
+  // filling the box makes these two areas clearly different; pointing the
+  // camera at nothing in particular leaves them nearly identical.
+  const marginX = Math.round(SAMPLE_W * 0.22);
+  const marginY = Math.round(SAMPLE_H * 0.22);
+  let innerSum = 0;
+  let innerCount = 0;
+  let ringSum = 0;
+  let ringCount = 0;
+  for (let y = 0; y < SAMPLE_H; y++) {
+    for (let x = 0; x < SAMPLE_W; x++) {
+      const v = gray[y * SAMPLE_W + x];
+      const inner = x >= marginX && x < SAMPLE_W - marginX && y >= marginY && y < SAMPLE_H - marginY;
+      if (inner) {
+        innerSum += v;
+        innerCount++;
+      } else {
+        ringSum += v;
+        ringCount++;
+      }
+    }
+  }
+  const fill =
+    innerCount && ringCount ? Math.abs(innerSum / innerCount - ringSum / ringCount) : 0;
+
+  return { brightness, sharpness, fill };
 }
 
 export function isDocFrameGood(m: DocFrameMetrics): boolean {
   return (
     m.brightness >= DOC_MIN_BRIGHTNESS &&
     m.brightness <= DOC_MAX_BRIGHTNESS &&
-    m.sharpness >= DOC_MIN_SHARPNESS
+    m.sharpness >= DOC_MIN_SHARPNESS &&
+    m.fill >= DOC_MIN_FILL
   );
+}
+
+/** What the frame is still missing, so the user can be told rather than left guessing. */
+export function docFrameHint(m: DocFrameMetrics | null): 'searching' | 'dark' | 'bright' | 'blurry' | 'ready' {
+  if (!m) return 'searching';
+  if (m.brightness < DOC_MIN_BRIGHTNESS) return 'dark';
+  if (m.brightness > DOC_MAX_BRIGHTNESS) return 'bright';
+  if (m.fill < DOC_MIN_FILL) return 'searching';
+  if (m.sharpness < DOC_MIN_SHARPNESS) return 'blurry';
+  return 'ready';
 }

@@ -131,6 +131,17 @@ const DICT: Record<string, { es: string; en: string }> = {
   // — Document capture —
   'doc.title': { es: 'Escaneo de documento', en: 'Document Scan' },
 
+  'doc.side.front': { es: 'Frente del documento', en: 'Front of document' },
+  'doc.side.back': { es: 'Reverso del documento', en: 'Back of document' },
+  'doc.hint.align': { es: 'Coloca el documento dentro del recuadro…', en: 'Place the document inside the frame…' },
+  'doc.hint.searching': { es: 'Acerca el documento hasta llenar el recuadro', en: 'Move the document closer to fill the frame' },
+  'doc.hint.dark': { es: 'Hay poca luz — busca un lugar más iluminado', en: 'Too dark — find better lighting' },
+  'doc.hint.bright': { es: 'Demasiado brillo o reflejo — inclina un poco el documento', en: 'Too much glare — tilt the document slightly' },
+  'doc.hint.blurry': { es: 'Se ve borroso — mantén firme el teléfono', en: 'Looks blurry — hold the phone steady' },
+  'doc.hint.ready': { es: '¡Listo! No lo muevas…', en: 'Looks good — hold it there…' },
+  'doc.hint.hold': { es: 'No lo muevas…', en: 'Hold still...' },
+  'doc.captureNow': { es: 'Tomar la foto ahora', en: 'Capture now' },
+
   // — Auth —
   'auth.register.title': { es: 'Crea tu identidad verificada', en: 'Create Your Verified Identity' },
   'auth.login.title': { es: 'Entra a tu cuenta', en: 'Sign in to your account' },
