@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { User, AuthResponse, LoginCredentials, RegisterData } from '@/types';
 import { apiClient } from '@/lib/apiClient';
+import { isOnboardingToken } from '@/lib/token';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -81,8 +82,13 @@ export const useAuth = () => {
       setUser(response.data.user);
       return response.data.user;
     } catch (err) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      // Don't discard an onboarding token on failure — it's the only thing
+      // authorizing the KYC flow the user is in the middle of, and /auth/me
+      // rejecting it is expected rather than a sign the session died.
+      if (!isOnboardingToken(token)) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
       setUser(null);
       return null;
     }

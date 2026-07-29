@@ -1,13 +1,5 @@
 import { apiClient } from './apiClient';
-
-function tokenScope(token: string): string | null {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload?.scope ?? null;
-  } catch {
-    return null;
-  }
-}
+import { tokenScope } from './token';
 
 /**
  * If the browser is holding the short-lived onboarding token issued at

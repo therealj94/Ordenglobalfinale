@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { isOnboardingToken } from './token';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -31,6 +32,14 @@ class ApiClient {
 
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
+
+          // Mid-onboarding, a 401 is the expected answer from anything outside
+          // the KYC endpoints — that token isn't meant to open them. Bouncing
+          // to the login screen here would throw the user out halfway through
+          // verifying and leave the account stranded as unverified.
+          if (isOnboardingToken()) {
+            return Promise.reject(error);
+          }
 
           try {
             const refreshToken = localStorage.getItem('refreshToken');
