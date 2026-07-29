@@ -3,14 +3,19 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { describeError } from '@/lib/describeError';
+import { apiClient } from '@/lib/apiClient';
+import { useT, LanguageToggle, translateServerMessage } from '@/lib/i18n';
 import Layout from '@/components/Layout';
 import toast from 'react-hot-toast';
-import { FiMail, FiUser, FiPhone, FiLoader } from 'react-icons/fi';
+import { FiMail, FiUser, FiPhone, FiLoader, FiShield } from 'react-icons/fi';
 import PasswordInput from '@/components/PasswordInput';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const t = useT();
   const { register, loading, error } = useAuth();
+  const [existingAccount, setExistingAccount] = useState(false);
+  const [resuming, setResuming] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -28,17 +33,17 @@ export default function RegisterPage() {
     e.preventDefault();
 
     if (!formData.email || !formData.password) {
-      toast.error('Email and password are required');
+      toast.error(t('auth.emailPasswordRequired'));
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error(t('auth.passwordsNoMatch'));
       return;
     }
 
     if (formData.password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+      toast.error(t('auth.passwordShort'));
       return;
     }
 
@@ -54,7 +59,7 @@ export default function RegisterPage() {
       // they have a full session (that starts once verification is approved).
       localStorage.setItem('accessToken', result.onboardingToken);
 
-      toast.success('Account created! Redirecting to verification...');
+      toast.success(t('auth.accountCreated'));
       router.push(`/verify?userId=${result.userId}`);
     } catch (err) {
       // Read the failure off the error itself, not off `error` state: that
@@ -62,7 +67,16 @@ export default function RegisterPage() {
       // the previous attempt's value (null on the first try) — which is why
       // every failure here reported the same generic "Registration failed"
       // no matter what actually went wrong.
-      toast.error(describeError(err, 'Registration failed'));
+      const message = translateServerMessage(describeError(err, t('auth.registerFailed')), t);
+      // The email already having an account is not a wall: it usually means a
+      // half-finished attempt, so offer the way to finish it rather than
+      // leaving them to guess.
+      if ((err as any)?.response?.status === 409) {
+        setExistingAccount(true);
+        toast.error(t('auth.emailTaken'));
+      } else {
+        toast.error(message);
+      }
     }
   };
 
@@ -70,11 +84,17 @@ export default function RegisterPage() {
     <Layout>
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 px-4">
         <div className="w-full max-w-md">
+          {/* Auth pages hide the site header, so the switcher lives here —
+              otherwise the journey starts in a language the user may not read. */}
+          <div className="flex justify-end mb-3">
+            <LanguageToggle />
+          </div>
+
           <div className="bg-white rounded-lg shadow-xl overflow-hidden">
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8">
-              <h1 className="text-3xl font-bold text-white mb-2">GENESIS ID</h1>
-              <p className="text-blue-100">Create Your Verified Identity</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">GENESIS ID</h1>
+              <p className="text-blue-100">{t('auth.register.title')}</p>
             </div>
 
             {/* Form */}
@@ -82,7 +102,7 @@ export default function RegisterPage() {
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
+                  {t('auth.email')}
                 </label>
                 <div className="relative">
                   <FiMail className="absolute left-3 top-3 text-gray-400" />
@@ -101,7 +121,7 @@ export default function RegisterPage() {
               {/* Full Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
+                  {t('auth.fullName')}
                 </label>
                 <div className="relative">
                   <FiUser className="absolute left-3 top-3 text-gray-400" />
@@ -119,7 +139,7 @@ export default function RegisterPage() {
               {/* Phone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number (Optional)
+                  {t('auth.phone')}
                 </label>
                 <div className="relative">
                   <FiPhone className="absolute left-3 top-3 text-gray-400" />
@@ -137,7 +157,7 @@ export default function RegisterPage() {
               {/* Password */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
+                  {t('auth.password')}
                 </label>
                 <PasswordInput
                   name="password"
@@ -152,7 +172,7 @@ export default function RegisterPage() {
               {/* Confirm Password */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirm Password
+                  {t('auth.confirmPassword')}
                 </label>
                 <PasswordInput
                   name="confirmPassword"
@@ -164,6 +184,34 @@ export default function RegisterPage() {
                 />
               </div>
 
+              {existingAccount && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-amber-900 text-sm mb-3">{t('auth.alreadyRegistered')}</p>
+                  <button
+                    type="button"
+                    disabled={resuming}
+                    onClick={async () => {
+                      setResuming(true);
+                      try {
+                        const { data } = await apiClient.post('/auth/verification-session', {
+                          email: formData.email,
+                          password: formData.password
+                        });
+                        localStorage.setItem('accessToken', data.onboardingToken);
+                        router.push(`/verify?userId=${data.userId}`);
+                      } catch (e: any) {
+                        toast.error(describeError(e, t('auth.registerFailed')));
+                        setResuming(false);
+                      }
+                    }}
+                    className="w-full bg-amber-500 text-white py-2.5 rounded-lg font-semibold hover:bg-amber-600 disabled:opacity-50 transition flex items-center justify-center"
+                  >
+                    {resuming ? <FiLoader className="animate-spin mr-2" /> : <FiShield className="mr-2" />}
+                    {t('auth.continueVerification')}
+                  </button>
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
@@ -173,18 +221,18 @@ export default function RegisterPage() {
                 {loading ? (
                   <>
                     <FiLoader className="animate-spin mr-2" />
-                    Creating Account...
+                    {t('auth.creating')}
                   </>
                 ) : (
-                  'Create Account'
+                  t('auth.createAccount')
                 )}
               </button>
 
               {/* Footer */}
               <p className="text-center text-gray-600 text-sm mt-6">
-                Already have an account?{' '}
+                {t('auth.haveAccount')}{' '}
                 <Link href="/auth/login" className="text-blue-600 hover:underline font-semibold">
-                  Login
+                  {t('auth.login')}
                 </Link>
               </p>
             </form>

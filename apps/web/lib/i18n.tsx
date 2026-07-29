@@ -138,11 +138,57 @@ const DICT: Record<string, { es: string; en: string }> = {
     es: 'Continuar mi verificación',
     en: 'Continue my verification'
   },
+  'server.notVerified': {
+    es: 'Tu cuenta aún no está verificada. Termina tu verificación para entrar.',
+    en: 'User not verified. Complete identity verification first.'
+  },
+  'server.invalidCredentials': { es: 'Correo o contraseña incorrectos.', en: 'Invalid credentials' },
+  'server.emailRegistered': { es: 'Este correo ya tiene una cuenta.', en: 'Email already registered' },
+  'server.deactivated': {
+    es: 'Esta cuenta fue desactivada. Vuelve a registrarte con este correo para reactivarla.',
+    en: 'This account has been deactivated. Register again with this email to reactivate it.'
+  },
+  'server.sessionExpired': { es: 'Tu sesión venció. Vuelve a entrar.', en: 'Your session expired. Please sign in again.' },
+  'server.alreadyVerified': { es: 'Esta cuenta ya está verificada. Solo inicia sesión.', en: 'This account is already verified. Just sign in.' },
+  'server.tooMany': { es: 'Demasiados intentos. Espera un momento y vuelve a probar.', en: 'Too many attempts. Please wait a moment and try again.' },
+  'auth.emailPasswordRequired': { es: 'Ingresa tu correo y contraseña.', en: 'Email and password are required' },
+  'auth.welcomeBack': { es: '¡Bienvenido de vuelta!', en: 'Welcome back!' },
+  'auth.loginFailed': { es: 'No pudimos iniciar sesión.', en: 'Login failed' },
+  'auth.signingIn': { es: 'Entrando…', en: 'Signing in...' },
+  'auth.passwordsNoMatch': { es: 'Las contraseñas no coinciden.', en: 'Passwords do not match' },
+  'auth.passwordShort': { es: 'La contraseña debe tener al menos 8 caracteres.', en: 'Password must be at least 8 characters' },
+  'auth.accountCreated': { es: 'Cuenta creada. Vamos a verificar tu identidad…', en: 'Account created! Redirecting to verification...' },
+  'auth.registerFailed': { es: 'No pudimos crear la cuenta.', en: 'Registration failed' },
+  'auth.emailTaken': { es: 'Este correo ya tiene una cuenta.', en: 'This email already has an account.' },
+  'auth.secured': { es: 'Tus datos van cifrados y protegidos.', en: 'Your data is encrypted and secured.' },
   'auth.alreadyRegistered': {
     es: 'Esta cuenta ya existe y le falta terminar la verificación.',
     en: 'This account already exists and still needs to finish verification.'
   }
 };
+
+/**
+ * The engine answers in English. Rather than translating it server-side and
+ * breaking every existing consumer, known messages are mapped to keys here so
+ * the person reading them sees their own language.
+ */
+const SERVER_MESSAGES: Record<string, string> = {
+  'User not verified. Complete identity verification first.': 'server.notVerified',
+  'Invalid credentials': 'server.invalidCredentials',
+  'Email already registered': 'server.emailRegistered',
+  'This account has been deactivated. Contact support.': 'server.deactivated',
+  'User not found or deactivated': 'server.deactivated',
+  'Session expired. Please log in again.': 'server.sessionExpired',
+  'Invalid or expired token': 'server.sessionExpired',
+  'Invalid or expired onboarding token': 'server.sessionExpired',
+  'This account is already verified. Sign in normally.': 'server.alreadyVerified',
+  'Too many requests, please try again later.': 'server.tooMany'
+};
+
+export function translateServerMessage(message: string, t: (k: string) => string): string {
+  const key = SERVER_MESSAGES[message?.trim()];
+  return key ? t(key) : message;
+}
 
 interface I18nValue {
   lang: Lang;
@@ -221,7 +267,11 @@ export function LanguageToggle({
             aria-label={code === 'es' ? 'Español' : 'English'}
             className={`px-2.5 py-1 transition ${
               active
-                ? 'bg-blue-600 text-white'
+                ? onLight
+                  // On the blue/dark surfaces a blue "active" pill disappears
+                  // into the page, so invert it there instead.
+                  ? 'bg-white text-blue-700'
+                  : 'bg-blue-600 text-white'
                 : onLight
                 ? 'text-white/80 hover:text-white'
                 : 'text-gray-600 hover:text-gray-900'
