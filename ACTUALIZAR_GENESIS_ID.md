@@ -36,26 +36,58 @@ manualmente (más abajo).
      y vuelve a **Manual Deploy**.
 3. Espera a que el estado quede en **Live** (2–4 minutos).
 
-### 1b. Correr la migración de base de datos ← **no te la saltes**
+### 1b. La migración corre sola ✅
 
-Esta versión agrega una columna nueva (`address` en `AppRegistrations`), que es
-donde se guarda la dirección de Veta Wallet de cada usuario. Sin esto, vincular
-la app va a dar error 500.
+**Ya no necesitas el Shell de Render** (que ahora es de pago). A partir de esta
+versión, `npm start` aplica las migraciones pendientes **antes** de levantar el
+servidor, así que cada deploy deja la base de datos al día por su cuenta.
 
-En Render → servicio `genesis-id-api` → pestaña **Shell**:
+Lo único que tienes que confirmar, **una sola vez**:
+
+1. Render → servicio `genesis-id-api` → **Settings** → **Start Command**
+2. Debe decir exactamente:
+   ```
+   npm start
+   ```
+3. Si dice otra cosa (por ejemplo `node src/app.js`), cámbialo a `npm start` y
+   guarda. Editar ese campo **es gratis**.
+
+Después del deploy, en **Logs** vas a ver la migración aplicarse:
+
+```
+== 018-add-app-address: migrating =======
+== 018-add-app-address: migrated (0.017s)
+Database connected successfully
+GENESIS ID server running on port 3000
+```
+
+En los siguientes deploys, cuando ya no haya nada pendiente, dirá:
+
+```
+No migrations were executed, database schema was already up to date.
+```
+
+> Si la migración fallara, el servidor **no arranca** — es a propósito: es
+> preferible que te enteres a que quede corriendo con la base desactualizada.
+
+<details>
+<summary><b>Alternativa manual</b> (si prefieres correrla tú desde tu computadora)</summary>
+
+No hace falta, pero se puede — y tampoco cuesta:
+
+1. Render → tu base de datos **`genesis-id-db`** → copia la **External Database URL**
+   (empieza con `postgresql://…`).
+2. En tu computadora, dentro del proyecto:
 
 ```bash
-npm run migrate
+npm install
+DATABASE_URL="pega-aqui-la-external-database-url" npx sequelize-cli db:migrate --url "pega-aqui-la-external-database-url"
 ```
 
-Debe terminar con algo como:
+Necesitas tener Node instalado. La URL **externa** es la que funciona desde
+fuera de Render (la interna solo funciona entre servicios de Render).
 
-```
-== 018-add-app-address: migrated (0.008s)
-```
-
-Si `npm run migrate` no arranca porque faltan migraciones viejas marcadas, corre
-antes `npm run fix-legacy-migrations` y repite.
+</details>
 
 ### 1c. Revisar variables de entorno
 
@@ -132,7 +164,7 @@ Desinstala la versión anterior antes de instalar la nueva.
 
 ## Orden recomendado
 
-1. Backend (Render) + **migración**
+1. Backend (Render) — la migración se aplica sola al arrancar
 2. Frontend (Vercel)
 3. APK
 
@@ -144,7 +176,8 @@ Así la app nueva nunca queda hablándole a un motor viejo.
 
 | Síntoma | Causa casi siempre | Solución |
 |---|---|---|
-| Error 500 al vincular la app | Falta la migración | Paso 1b |
+| Error 500 al vincular la app | La migración no corrió | Revisa que el **Start Command** sea `npm start` (Paso 1b) |
+| El servicio no arranca tras el deploy | Una migración falló | Mira los **Logs**: el error exacto sale ahí |
 | "not found" en `verification-session` | Backend sin actualizar | Paso 1 |
 | No sale el botón "Volver a Veta Wallet" | Vercel sin actualizar | Paso 2 |
 | `ERR_SSL_UNRECOGNIZED_NAME_ALERT` | Se está usando el dominio sin `www` | Usa `www.genesisid.online` |

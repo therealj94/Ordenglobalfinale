@@ -10,6 +10,9 @@ services:
     runtime: node
     plan: starter
     buildCommand: npm install
+    # `npm start` runs pending migrations before booting the server, so a
+    # deploy never leaves the code ahead of the schema — and no shell access
+    # is needed to ship a migration (Render's Shell is a paid feature).
     startCommand: npm start
     healthCheckPath: /health
     envVars:
