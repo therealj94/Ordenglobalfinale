@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { User, AuthResponse, LoginCredentials, RegisterData } from '@/types';
 import { apiClient } from '@/lib/apiClient';
 import { isOnboardingToken } from '@/lib/token';
+import { describeError } from '@/lib/describeError';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -15,8 +16,7 @@ export const useAuth = () => {
       const response = await apiClient.post('/auth/register', data);
       return response.data;
     } catch (err: any) {
-      const message = err.response?.data?.error || 'Registration failed';
-      setError(message);
+      setError(describeError(err, 'Registration failed'));
       throw err;
     } finally {
       setLoading(false);
@@ -36,8 +36,7 @@ export const useAuth = () => {
 
       return { accessToken, refreshToken, user };
     } catch (err: any) {
-      const message = err.response?.data?.error || 'Login failed';
-      setError(message);
+      setError(describeError(err, 'Login failed'));
       throw err;
     } finally {
       setLoading(false);

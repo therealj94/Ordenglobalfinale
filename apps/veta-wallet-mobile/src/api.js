@@ -17,15 +17,58 @@ export const GENESIS_APP_URL = process.env.EXPO_PUBLIC_GENESIS_APP_URL || 'https
 const SESSION_KEY = 'veta_genesis_session';
 const APP_NAME = 'veta-wallet';
 
+// A hosted backend that has scaled to zero takes the better part of a minute
+// to answer its first request. fetch() has no timeout of its own, so without
+// this the app just sits on a spinner with no way out and no explanation.
+const FIRST_TRY_MS = 20000;
+const WAKE_UP_MS = 45000;
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const url = `${API_BASE_URL}${path}`;
+  const init = {
     ...options,
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-  });
+  };
+
+  let res;
+  try {
+    res = await fetchWithTimeout(url, init, FIRST_TRY_MS);
+  } catch (first) {
+    // Retry once with a longer window: the first request is what wakes a
+    // sleeping backend, so the second usually lands quickly.
+    try {
+      res = await fetchWithTimeout(url, init, WAKE_UP_MS);
+    } catch (second) {
+      const err = new Error(
+        second.name === 'AbortError'
+          ? 'El servicio no respondió a tiempo. Revisa tu conexión e intenta de nuevo.'
+          : 'No pudimos conectar con GENESIS ID. Revisa tu conexión e intenta de nuevo.'
+      );
+      err.isNetwork = true;
+      throw err;
+    }
+  }
+
   let data = null;
   try { data = await res.json(); } catch (e) {}
+
   if (!res.ok) {
-    const err = new Error((data && data.error) || 'Algo salió mal. Intenta de nuevo.');
+    const err = new Error(
+      (data && data.error) ||
+        (res.status >= 500
+          ? 'GENESIS ID tuvo un problema interno. Intenta de nuevo en un momento.'
+          : 'Algo salió mal. Intenta de nuevo.')
+    );
     err.status = res.status;
     throw err;
   }

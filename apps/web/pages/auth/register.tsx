@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import { describeError } from '@/lib/describeError';
 import Layout from '@/components/Layout';
 import toast from 'react-hot-toast';
 import { FiMail, FiUser, FiPhone, FiLoader } from 'react-icons/fi';
@@ -56,7 +57,12 @@ export default function RegisterPage() {
       toast.success('Account created! Redirecting to verification...');
       router.push(`/verify?userId=${result.userId}`);
     } catch (err) {
-      toast.error(error || 'Registration failed');
+      // Read the failure off the error itself, not off `error` state: that
+      // state belongs to the render this handler closed over, so it's still
+      // the previous attempt's value (null on the first try) — which is why
+      // every failure here reported the same generic "Registration failed"
+      // no matter what actually went wrong.
+      toast.error(describeError(err, 'Registration failed'));
     }
   };
 

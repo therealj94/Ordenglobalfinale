@@ -9,6 +9,11 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: API_URL,
+      // A hosted backend that has scaled to zero takes the better part of a
+      // minute to answer its first request. Without a ceiling the browser just
+      // spins with nothing to tell the user; 60s is long enough to cover that
+      // cold start and short enough to fail with a message instead of hanging.
+      timeout: 60000,
       headers: {
         'Content-Type': 'application/json'
       }
