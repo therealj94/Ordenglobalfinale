@@ -1,13 +1,14 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Image, Share, Animated, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, ScrollView, Image, Share, Pressable, ActivityIndicator, Animated, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import Svg, { Path } from 'react-native-svg';
 import QRCode from 'react-native-qrcode-svg';
 import { C } from '../theme';
 import { Header, Button3D, hap } from '../ui';
 import { useUser } from '../user';
-import { verifyGidUrl } from '../api';
+import { verifyGidUrl, GENESIS_APP_URL } from '../api';
 
 const PAPER = '#F6EFDB';
 const INK = '#2B2013';
@@ -60,7 +61,8 @@ function Line({ label, value, valueStyle }) {
 }
 
 export default function GidCard({ nav }) {
-  const { user, profile, gid, displayName, isLoggedIn } = useUser();
+  const { user, profile, gid, displayName, isLoggedIn, refreshProfile } = useUser();
+  const [refreshing, setRefreshing] = useState(false);
   const fade = useRef(new Animated.Value(0)).current;
   const lift = useRef(new Animated.Value(24)).current;
 
@@ -69,7 +71,26 @@ export default function GidCard({ nav }) {
       Animated.timing(fade, { toValue: 1, duration: 420, useNativeDriver: true }),
       Animated.spring(lift, { toValue: 0, useNativeDriver: true, speed: 12, bounciness: 7 }),
     ]).start();
+    // Pull the latest identity every time the card is opened — the photo and
+    // signature are added over on GENESIS ID, so whatever was fetched at
+    // sign-in is often already out of date by the time the user looks.
+    refreshProfile();
   }, []);
+
+  const reload = async () => {
+    hap();
+    setRefreshing(true);
+    try { await refreshProfile(); } finally { setRefreshing(false); }
+  };
+
+  // Adding the photo happens on GENESIS ID, which owns the quality checks.
+  const addPhotoOnGenesis = async () => {
+    hap();
+    try {
+      await WebBrowser.openBrowserAsync(`${GENESIS_APP_URL}/dashboard`);
+      await refreshProfile();
+    } catch (e) {}
+  };
 
   const verified = user?.status === 'verified' && !!gid;
 
@@ -195,9 +216,37 @@ export default function GidCard({ nav }) {
             </LinearGradient>
           </View>
 
+          {/* Verified, but the passport photo hasn't been added on GENESIS ID
+              yet — say so plainly and offer the way to finish it, instead of
+              leaving a silently empty photo box. */}
+          {!profile?.idCardPhoto && (
+            <View style={styles.missingPhoto}>
+              <Ionicons name="camera-outline" size={20} color={C.gold} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.missingTitle}>Falta tu foto de pasaporte</Text>
+                <Text style={styles.missingTxt}>
+                  Agrégala en GENESIS ID para completar tu identidad. Al volver, aparece aquí sola.
+                </Text>
+              </View>
+            </View>
+          )}
+
           <View style={{ marginTop: 20 }}>
-            <Button3D title="Compartir mi GENESIS ID" icon="share-outline" onPress={share} />
+            {!profile?.idCardPhoto ? (
+              <Button3D title="Agregar mi foto en GENESIS ID" icon="camera" onPress={addPhotoOnGenesis} />
+            ) : (
+              <Button3D title="Compartir mi GENESIS ID" icon="share-outline" onPress={share} />
+            )}
           </View>
+
+          <Pressable onPress={reload} disabled={refreshing} style={styles.reloadRow}>
+            {refreshing ? (
+              <ActivityIndicator size="small" color={C.gold} />
+            ) : (
+              <Ionicons name="refresh" size={15} color={C.gold} />
+            )}
+            <Text style={styles.reloadTxt}>{refreshing ? 'Actualizando…' : 'Actualizar mi identidad'}</Text>
+          </Pressable>
           <Text style={styles.note}>
             Tu GENESIS ID es tu identidad verificada única en todo el ecosistema Orden Global. Con ella accedes a Veta Wallet y a las demás apps sin volver a verificarte.
           </Text>
@@ -238,6 +287,11 @@ const styles = StyleSheet.create({
   footBand: { alignItems: 'center', paddingVertical: 8 },
   footTxt: { color: 'rgba(241,200,120,0.7)', fontSize: 7.5, letterSpacing: 2, fontWeight: '600' },
   note: { color: C.txt3, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 16 },
+  missingPhoto: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: 'rgba(201,169,97,0.1)', borderWidth: 1, borderColor: 'rgba(201,169,97,0.35)', borderRadius: 16, padding: 14, marginTop: 18 },
+  missingTitle: { color: C.goldLt, fontWeight: '700', fontSize: 13.5 },
+  missingTxt: { color: C.txt2, fontSize: 12, lineHeight: 17, marginTop: 3 },
+  reloadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 16 },
+  reloadTxt: { color: C.gold, fontWeight: '600', fontSize: 13 },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 34 },
   emptyIcon: { width: 84, height: 84, borderRadius: 24, backgroundColor: '#0A3A3D', borderWidth: 1, borderColor: C.line2, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   emptyTitle: { fontSize: 20, fontWeight: '800', color: C.txt, textAlign: 'center', marginBottom: 10 },

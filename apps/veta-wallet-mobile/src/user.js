@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { AppState } from 'react-native';
 import * as api from './api';
 
 // Holds the logged-in GENESIS ID user for the whole app. Screens read the
@@ -70,6 +71,17 @@ export function UserProvider({ children }) {
   const refreshProfile = useCallback(async () => {
     if (session) await hydrate(session);
   }, [session, hydrate]);
+
+  // The identity can change on GENESIS ID while the app sits in the
+  // background — most obviously the passport photo and signature, which are
+  // added over there. Without this the app would keep showing whatever it
+  // fetched at sign-in and never learn the photo exists.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshProfile();
+    });
+    return () => sub.remove();
+  }, [refreshProfile]);
 
   const logout = useCallback(async () => {
     setSession(null);
