@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { sequelize } = require('./models');
+const { missingUserColumns } = require('./utils/schemaCheck');
 const { startSweeper } = require('./services/VerificationDecisionService');
 
 const authRoutes = require('./routes/authRoutes');
@@ -48,8 +49,37 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Reports whether the database is reachable and whether its schema still
+// matches the code. Deliberately always answers 200 so a database problem
+// doesn't send the platform's health check into a restart loop — the detail
+// is in the body, which is what's actually useful when diagnosing.
+app.get('/health', async (req, res) => {
+  const health = { status: 'ok', timestamp: new Date().toISOString() };
+
+  try {
+    await sequelize.authenticate();
+    health.database = 'connected';
+
+    const missing = await missingUserColumns();
+    if (missing.length) {
+      health.status = 'degraded';
+      health.schema = 'outdated';
+      // Safe to name: this schema is the project's own, not user data. Without
+      // it there's no way to tell "migrations never ran" from any other 500.
+      health.missingColumns = missing;
+      health.hint = 'Run migrations — the database is behind the code.';
+    } else {
+      health.schema = 'ok';
+    }
+  } catch (error) {
+    // The message can carry host/credential details, so it goes to the logs
+    // rather than to whoever curls this endpoint.
+    console.error('Health check database error:', error);
+    health.status = 'degraded';
+    health.database = 'error';
+  }
+
+  res.json(health);
 });
 
 // Routes

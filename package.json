@@ -4,7 +4,7 @@
   "description": "Centralized facial verification engine for Orden Global ecosystem",
   "main": "src/app.js",
   "scripts": {
-    "start": "npm run migrate && node src/app.js",
+    "start": "node scripts/migrateSafely.js && node src/app.js",
     "start:only": "node src/app.js",
     "dev": "nodemon src/app.js",
     "migrate": "sequelize-cli db:migrate",

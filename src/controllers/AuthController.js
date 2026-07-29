@@ -80,7 +80,23 @@ class AuthController {
         onboardingToken
       });
     } catch (error) {
-      console.error('Register error:', error);
+      console.error('Register error:', error.name, error.message, error);
+
+      // Two accounts racing on the same email hit the unique index rather than
+      // the lookup above; that's the same situation, so answer the same way.
+      if (error.name === 'SequelizeUniqueConstraintError') {
+        return res.status(409).json({ error: 'Email already registered' });
+      }
+
+      // A database that's behind the code fails here on every single signup,
+      // and "Registration failed" gives nobody a way to work that out. Name it.
+      if (error.name === 'SequelizeDatabaseError') {
+        return res.status(500).json({
+          error: 'The identity service is not fully set up yet. Please try again shortly.',
+          code: 'SCHEMA_OUT_OF_DATE'
+        });
+      }
+
       res.status(500).json({ error: 'Registration failed' });
     }
   }
