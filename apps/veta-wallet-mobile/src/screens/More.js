@@ -6,6 +6,9 @@ import { C, G } from '../theme';
 import { Header, Logo, TokenIcon, Button3D, Card, ListRow, Toggle, SectionHead, useToast, hap } from '../ui';
 import { useUser } from '../user';
 import { TXNS, NOTIFS, TOKENS, money } from '../data';
+import appConfig from '../../app.json';
+
+const APP_VERSION = appConfig.expo.version;
 
 // ================= REMESAS =================
 export function Remit({ nav }) {
@@ -227,7 +230,12 @@ export function Settings({ nav }) {
         </View>
 
         <Button3D variant="ghost" title="Cerrar sesión" onPress={async () => { await logout(); nav.go('auth'); }} />
-        <Text style={styles.foot}>Veta Wallet v1.0 · Orden Global{'\n'}Diseño por Monark Brand Labs</Text>
+        {/* Real build version, read from app.json rather than typed in — a
+            hardcoded "v1.0" made it impossible to tell which build a phone
+            was actually running when diagnosing. */}
+        <Text style={styles.foot}>
+          Veta Wallet v{APP_VERSION} · Orden Global{'\n'}Diseño por Monark Brand Labs
+        </Text>
       </ScrollView>
     </View>
   );
