@@ -6,9 +6,10 @@ import AMLForm from './AMLForm';
 import FacialCapture from './FacialCapture';
 import DocumentCapture, { DocumentCaptureResult } from './DocumentCapture';
 import ReviewProgress from './ReviewProgress';
-import { useT, LanguageToggle } from '@/lib/i18n';
+import { useT, LanguageToggle, translateServerMessage } from '@/lib/i18n';
 import { upgradeOnboardingSession } from '@/lib/onboardingSession';
 import { isOnboardingToken } from '@/lib/token';
+import { shrinkToFit } from '@/lib/imageCapture';
 import {
   FiCheckCircle,
   FiLoader,
@@ -175,12 +176,25 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
 
     setStep('submitting');
     try {
+      // Measure and shrink before sending. What the camera hands back varies by
+      // device, so a fixed capture size alone can't guarantee the submission
+      // fits — and going over means the server rejects it outright, before any
+      // check runs, which is indistinguishable from a failed verification.
+      const packed = await shrinkToFit([
+        ...selfieImages,
+        result.frontImage,
+        ...(result.backImage ? [result.backImage] : [])
+      ]);
+      const packedSelfies = packed.slice(0, selfieImages.length);
+      const packedFront = packed[selfieImages.length];
+      const packedBack = result.backImage ? packed[selfieImages.length + 1] : undefined;
+
       await submitKYC({
         userId,
         documentType: result.documentType,
-        documentFrontImage: result.frontImage,
-        documentBackImage: result.backImage,
-        selfieImages,
+        documentFrontImage: packedFront,
+        documentBackImage: packedBack,
+        selfieImages: packedSelfies,
         livenessResult: { anglesCaptured: selfieImages.length, method: 'guided-rotation' },
         amlInfo
       });
@@ -202,8 +216,19 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
         return;
       }
 
-      const message = error?.response?.data?.error || 'Failed to submit verification';
+      // The real reason was captured but never shown: the failure screen fell
+      // back to its generic "try again with better lighting" copy, so a
+      // submission rejected for its size — or anything else — read as a photo
+      // problem the user had already fixed.
+      const status = error?.response?.status;
+      const serverMessage = error?.response?.data?.error;
+      const message =
+        status === 413
+          ? t('kyc.tooLarge')
+          : translateServerMessage(serverMessage || t('kyc.submitFailed'), t);
+
       toast.error(message);
+      setRejectionReason(message);
       setStep('failed');
       onStatusChange?.('rejected', { rejectionReason: message });
     }

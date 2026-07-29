@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { FiCamera, FiCheck, FiArrowUp, FiArrowDown, FiArrowLeft, FiArrowRight, FiCameraOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useT } from '@/lib/i18n';
+import { captureFrame } from '@/lib/imageCapture';
 import {
   computeHeadPose,
   matchesTargetPose,
@@ -74,13 +75,14 @@ export default function FacialCapture({ onCapture, onError }: FacialCaptureProps
       return;
     }
 
-    canvasRef.current.width = videoRef.current.videoWidth;
-    canvasRef.current.height = videoRef.current.videoHeight;
-
-    ctx.scale(-1, 1);
-    ctx.drawImage(videoRef.current, -canvasRef.current.width, 0);
-
-    const photo = canvasRef.current.toDataURL('image/jpeg', 0.9);
+    // Downscaled on the way out: five full-resolution angles plus a document
+    // exceeded the server's request limit, and the submission was rejected
+    // before anything could look at it.
+    const photo = captureFrame(videoRef.current, canvasRef.current, { mirrored: true });
+    if (!photo) {
+      capturingRef.current = false;
+      return;
+    }
     setCapturedPhoto(photo);
 
     const updatedPhotos = [...capturedPhotosRef.current, photo];

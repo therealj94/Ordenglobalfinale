@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { DocumentType } from '@/hooks/useVerification';
 import { analyzeDocFrame, isDocFrameGood, docFrameHint, DocFrameMetrics } from '@/lib/docQuality';
 import { useT } from '@/lib/i18n';
+import { captureFrame } from '@/lib/imageCapture';
 
 export interface DocumentCaptureResult {
   documentType: DocumentType;
@@ -98,12 +99,13 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
       return;
     }
 
-    // Back/environment camera is not mirrored — capture as-is.
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
-
-    const photo = canvas.toDataURL('image/jpeg', 0.92);
+    // Back/environment camera is not mirrored — capture as-is, downscaled so
+    // the whole submission stays inside the server's request limit.
+    const photo = captureFrame(video, canvas);
+    if (!photo) {
+      capturingRef.current = false;
+      return;
+    }
     setImageForSide(photo);
     stopCamera();
     toast.success(`${side === 'front' ? 'Front' : 'Back'} captured!`);

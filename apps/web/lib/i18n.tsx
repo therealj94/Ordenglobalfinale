@@ -107,6 +107,14 @@ const DICT: Record<string, { es: string; en: string }> = {
     es: 'Para retomar tu verificación necesitamos confirmar que eres tú. Entra con tu correo y contraseña.',
     en: 'To pick your verification back up we need to confirm it\'s you. Sign in with your email and password.'
   },
+  'kyc.tooLarge': {
+    es: 'Las fotos pesaron demasiado para enviarse. Vuelve a tomarlas — ya las estamos comprimiendo mejor.',
+    en: 'The photos were too large to upload. Please retake them — they are compressed better now.'
+  },
+  'kyc.submitFailed': {
+    es: 'No pudimos enviar tu verificación. Intenta de nuevo.',
+    en: "We couldn't submit your verification. Please try again."
+  },
   'kyc.sessionPending': {
     es: 'Tu cuenta aún no termina de activarse. Espera un momento y vuelve a intentar, o inicia sesión de nuevo.',
     en: "Your account isn't fully active yet. Wait a moment and try again, or sign in again."
@@ -174,6 +182,7 @@ const DICT: Record<string, { es: string; en: string }> = {
   },
   'server.sessionExpired': { es: 'Tu sesión venció. Vuelve a entrar.', en: 'Your session expired. Please sign in again.' },
   'server.alreadyVerified': { es: 'Esta cuenta ya está verificada. Solo inicia sesión.', en: 'This account is already verified. Just sign in.' },
+  'request entity too large': { es: 'Las fotos pesaron demasiado para enviarse.', en: 'The photos were too large to upload.' },
   'server.tooMany': { es: 'Demasiados intentos. Espera un momento y vuelve a probar.', en: 'Too many attempts. Please wait a moment and try again.' },
   'auth.emailPasswordRequired': { es: 'Ingresa tu correo y contraseña.', en: 'Email and password are required' },
   'auth.welcomeBack': { es: '¡Bienvenido de vuelta!', en: 'Welcome back!' },
