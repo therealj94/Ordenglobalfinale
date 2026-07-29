@@ -4,7 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { sequelize } = require('./models');
-const { missingUserColumns } = require('./utils/schemaCheck');
+const { missingColumnsByTable } = require('./utils/schemaCheck');
+const { repairMissingColumns } = require('./utils/schemaRepair');
 const { startSweeper } = require('./services/VerificationDecisionService');
 
 const authRoutes = require('./routes/authRoutes');
@@ -60,8 +61,9 @@ app.get('/health', async (req, res) => {
     await sequelize.authenticate();
     health.database = 'connected';
 
-    const missing = await missingUserColumns();
-    if (missing.length) {
+    const missing = await missingColumnsByTable();
+    const tables = Object.keys(missing);
+    if (tables.length) {
       health.status = 'degraded';
       health.schema = 'outdated';
       // Safe to name: this schema is the project's own, not user data. Without
@@ -115,6 +117,20 @@ async function startServer() {
     if (process.env.NODE_ENV === 'development') {
       await sequelize.sync({ alter: true });
       console.log('Database models synchronized');
+    }
+
+    // Migrations have already run by this point (see scripts/migrateSafely).
+    // This catches what they left behind: a migration recorded as applied
+    // after only partly running leaves columns missing that nothing else will
+    // ever create, and the first write to touch one fails with an opaque 500.
+    try {
+      const repaired = await repairMissingColumns();
+      if (repaired.length) {
+        console.warn(`[schema] repaired ${repaired.length} missing column(s): ${repaired.join(', ')}`);
+      }
+    } catch (error) {
+      // Diagnosable via /health either way — don't refuse to boot over it.
+      console.error('[schema] repair pass failed:', error.message);
     }
 
     startSweeper();
