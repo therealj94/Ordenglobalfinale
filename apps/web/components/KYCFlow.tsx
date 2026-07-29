@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useVerification, AMLInfo } from '@/hooks/useVerification';
 import toast from 'react-hot-toast';
 import AMLForm from './AMLForm';
 import FacialCapture from './FacialCapture';
 import DocumentCapture, { DocumentCaptureResult } from './DocumentCapture';
+import ReviewProgress from './ReviewProgress';
+import { useT, LanguageToggle } from '@/lib/i18n';
 import {
   FiCheckCircle,
   FiLoader,
@@ -26,7 +28,7 @@ interface KYCFlowProps {
   embedded?: boolean;
 }
 
-type Step = 'info' | 'aml' | 'facial' | 'document' | 'submitting' | 'processing' | 'review' | 'completed' | 'failed';
+type Step = 'resuming' | 'info' | 'aml' | 'facial' | 'document' | 'submitting' | 'processing' | 'review' | 'completed' | 'failed';
 
 // How long to keep polling for a decision before giving up and sending the
 // user to the "under review" screen anyway (the backend keeps working on
@@ -36,17 +38,68 @@ const MAX_POLL_MS = 5 * 60 * 1000;
 
 export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = false }: KYCFlowProps) {
   const router = useRouter();
+  const t = useT();
   const { submitKYC, getKYCStatus, loading } = useVerification();
-  const [step, setStep] = useState<Step>('info');
+  const [step, setStep] = useState<Step>('resuming');
   const [amlInfo, setAmlInfo] = useState<AMLInfo | null>(null);
   const [selfieImages, setSelfieImages] = useState<string[]>([]);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [gid, setGid] = useState<string | null>(null);
+  const [longWait, setLongWait] = useState(false);
 
-  const steps = ['Start', 'Compliance Info', 'Facial Verification', 'Document Scan', 'Review', 'Completed'];
+  const steps = [
+    t('kyc.step.start'),
+    t('kyc.step.aml'),
+    t('kyc.step.facial'),
+    t('kyc.step.document'),
+    t('kyc.step.review'),
+    t('kyc.step.done')
+  ];
   const currentStepIndex = ['info', 'aml', 'facial', 'document', 'submitting', 'completed'].indexOf(
     step === 'review' || step === 'failed' || step === 'processing' ? 'submitting' : step
   );
+
+  /**
+   * Someone who walked away mid-verification comes back to whatever the engine
+   * already knows about them, rather than to the first screen with no hint of
+   * the attempt they already made. Leaving during the face or document capture
+   * genuinely does mean starting those over — nothing was submitted yet — but
+   * once it's submitted, this is what stops "you're already registered, finish
+   * verifying" from being a dead end that never says where to finish it.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const status = await getKYCStatus(userId);
+        if (cancelled) return;
+        if (status.status === 'approved') {
+          setGid((status as any).gid || null);
+          setStep('completed');
+          onSuccess?.(status);
+          onStatusChange?.('approved', status);
+        } else if (status.status === 'pending') {
+          setStep('review');
+          onStatusChange?.('pending', status);
+        } else if (status.status === 'rejected') {
+          setRejectionReason(status.rejectionReason || null);
+          setStep('failed');
+        } else if (status.status === 'processing') {
+          setStep('processing');
+          pollUntilResolved(userId);
+        } else {
+          setStep('info');
+        }
+      } catch {
+        // 404 means nothing has been submitted yet — a genuinely fresh start.
+        if (!cancelled) setStep('info');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const handleStartVerification = () => {
     setStep('aml');
@@ -65,6 +118,10 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
 
   const pollUntilResolved = async (uid: string) => {
     const start = Date.now();
+    // Only mention the 24-hour possibility once the wait is genuinely long —
+    // saying it up front makes a two-minute check sound like a day.
+    const longWaitTimer = setTimeout(() => setLongWait(true), 45000);
+    try {
     while (Date.now() - start < MAX_POLL_MS) {
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       try {
@@ -99,6 +156,9 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
     // sits on this screen forever.
     setStep('review');
     onStatusChange?.('pending', { verificationId: undefined });
+    } finally {
+      clearTimeout(longWaitTimer);
+    }
   };
 
   const handleDocumentComplete = async (result: DocumentCaptureResult) => {
@@ -151,20 +211,39 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 py-5 sm:py-8 px-3 sm:px-4">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12 text-white">
-          <div className="flex items-center justify-center mb-4">
-            <FiCamera className="text-blue-400 mr-2" size={32} />
-            <h1 className="text-4xl font-bold">GENESIS ID</h1>
+        <div className="text-center mb-6 sm:mb-10 text-white">
+          {/* Only when embedded: the standalone page already has the site
+              header, and two switchers side by side is just clutter. Kept in
+              normal flow rather than absolutely positioned, which was landing
+              it on top of the title on narrow screens. */}
+          {embedded && (
+            <div className="flex justify-end mb-3">
+              <LanguageToggle />
+            </div>
+          )}
+          <div className="flex items-center justify-center mb-2 sm:mb-4">
+            <FiCamera className="text-blue-400 mr-2" size={24} />
+            <h1 className="text-2xl sm:text-4xl font-bold">GENESIS ID</h1>
           </div>
-          <p className="text-blue-200 text-lg">Secure Identity Verification</p>
+          <p className="text-blue-200 text-sm sm:text-lg">{t('kyc.subtitle')}</p>
         </div>
 
-        {/* Stepper */}
-        <div className="mb-12 bg-white bg-opacity-10 backdrop-blur rounded-lg p-8">
-          <div className="flex justify-between mb-8">
+        {/* Stepper — six labelled circles don't fit a phone, so small screens
+            get the step name and a bar instead of six unreadable stubs. */}
+        <div className="mb-6 sm:mb-10 bg-white bg-opacity-10 backdrop-blur rounded-xl p-4 sm:p-8">
+          <div className="sm:hidden mb-3 flex items-baseline justify-between text-white">
+            <p className="font-semibold text-sm">
+              {steps[Math.max(currentStepIndex, 0)] || steps[0]}
+            </p>
+            <p className="text-blue-200 text-xs">
+              {t('kyc.step.label')} {Math.max(currentStepIndex, 0) + 1} {t('common.of')} {steps.length}
+            </p>
+          </div>
+
+          <div className="hidden sm:flex justify-between mb-8">
             {steps.map((label, index) => {
               let status: 'completed' | 'current' | 'upcoming' = 'upcoming';
               if (index < currentStepIndex) status = 'completed';
@@ -212,52 +291,50 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
           {step === 'info' && (
             <div className="bg-gradient-to-br from-blue-50 to-white p-8 md:p-12">
               <div className="max-w-2xl">
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">Verify Your Identity</h2>
-                <p className="text-gray-600 text-lg mb-8">
-                  Complete your identity verification in a few steps. This secure process takes about 5 minutes.
-                </p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{t('kyc.intro.title')}</h2>
+                <p className="text-gray-600 mb-7">{t('kyc.intro.desc')}</p>
 
                 <div className="space-y-4 mb-8">
                   <div className="flex items-start bg-indigo-50 p-4 rounded-lg border border-indigo-200">
                     <div className="text-2xl mr-4">📋</div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Compliance Information</h3>
-                      <p className="text-gray-600 text-sm">A few required questions (AML/KYC) before we can verify you</p>
+                      <h3 className="font-semibold text-gray-900">{t('kyc.intro.aml')}</h3>
+                      <p className="text-gray-600 text-sm">{t('kyc.intro.amlDesc')}</p>
                     </div>
                   </div>
 
                   <div className="flex items-start bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <div className="text-2xl mr-4">📸</div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Facial Verification</h3>
-                      <p className="text-gray-600 text-sm">Hold each position — 5 angles capture automatically to verify liveness</p>
+                      <h3 className="font-semibold text-gray-900">{t('kyc.intro.facial')}</h3>
+                      <p className="text-gray-600 text-sm">{t('kyc.intro.facialDesc')}</p>
                     </div>
                   </div>
 
                   <div className="flex items-start bg-purple-50 p-4 rounded-lg border border-purple-200">
                     <div className="text-2xl mr-4">📄</div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Document Scan</h3>
-                      <p className="text-gray-600 text-sm">Scan your ID (front + back), driver's license, or passport</p>
+                      <h3 className="font-semibold text-gray-900">{t('kyc.intro.document')}</h3>
+                      <p className="text-gray-600 text-sm">{t('kyc.intro.documentDesc')}</p>
                     </div>
                   </div>
 
                   <div className="flex items-start bg-green-50 p-4 rounded-lg border border-green-200">
                     <div className="text-2xl mr-4">✅</div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Review</h3>
-                      <p className="text-gray-600 text-sm">Approved instantly or reviewed by our team</p>
+                      <h3 className="font-semibold text-gray-900">{t('kyc.intro.review')}</h3>
+                      <p className="text-gray-600 text-sm">{t('kyc.intro.reviewDesc')}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-8">
-                  <h4 className="font-semibold text-yellow-900 mb-2">✓ Requirements:</h4>
+                  <h4 className="font-semibold text-yellow-900 mb-2">{t('kyc.intro.requirements')}</h4>
                   <ul className="text-sm text-yellow-800 space-y-1">
-                    <li>• Good lighting (natural light recommended)</li>
-                    <li>• Valid government-issued ID or passport</li>
-                    <li>• Webcam or mobile device camera</li>
-                    <li>• Internet connection</li>
+                    <li>• {t('kyc.intro.req1')}</li>
+                    <li>• {t('kyc.intro.req2')}</li>
+                    <li>• {t('kyc.intro.req3')}</li>
+                    <li>• {t('kyc.intro.req4')}</li>
                   </ul>
                 </div>
 
@@ -266,7 +343,7 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
                   className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-lg font-bold text-lg hover:from-blue-700 hover:to-blue-800 transition transform hover:scale-105 flex items-center justify-center"
                 >
                   <FiCamera className="mr-2" />
-                  Start Verification
+                  {t('kyc.intro.start')}
                 </button>
               </div>
             </div>
@@ -291,25 +368,25 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
             />
           )}
 
+          {step === 'resuming' && (
+            <div className="p-12 sm:p-16 text-center">
+              <FiLoader className="animate-spin mx-auto mb-4 text-blue-600" size={40} />
+              <p className="text-gray-600">{t('kyc.resume.title')}</p>
+            </div>
+          )}
+
           {step === 'submitting' && (
-            <div className="p-16 text-center">
-              <FiLoader className="animate-spin mx-auto mb-4 text-blue-600" size={48} />
-              <p className="text-gray-600 text-lg">Uploading your verification...</p>
+            <div className="p-10 sm:p-16 text-center">
+              <FiLoader className="animate-spin mx-auto mb-4 text-blue-600" size={44} />
+              <p className="text-gray-600 text-lg">{t('kyc.uploading')}</p>
             </div>
           )}
 
           {step === 'processing' && (
-            <div className="p-8 md:p-16 text-center">
-              <FiLoader className="animate-spin mx-auto mb-6 text-blue-600" size={56} />
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">Verifying your identity...</h2>
-              <p className="text-gray-600 text-lg mb-6 max-w-md mx-auto">
-                This first automatic check usually takes just a few minutes.
-              </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-md mx-auto">
-                <p className="text-gray-700 text-sm">
-                  If we need to review anything further, it can take up to 24 hours — we'll email you either way, so you don't need to keep this page open.
-                </p>
-              </div>
+            <div className="p-5 sm:p-10 text-center">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{t('kyc.review.title')}</h2>
+              <p className="text-gray-600 mb-7 max-w-md mx-auto">{t('kyc.review.subtitle')}</p>
+              <ReviewProgress outcome="working" longWait={longWait} />
             </div>
           )}
 
@@ -321,15 +398,11 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
                 </div>
               </div>
 
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">Under Review</h2>
-              <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
-                Your verification needs a closer look from our team. This can take up to 24 hours.
-              </p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{t('kyc.pending.title')}</h2>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">{t('kyc.pending.desc')}</p>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8 max-w-md mx-auto">
-                <p className="text-gray-700">
-                  📧 We'll send you an email notification as soon as the review is complete.
-                </p>
+                <p className="text-gray-700 text-sm">{t('kyc.pending.email')}</p>
               </div>
 
               {!embedded && (
@@ -351,14 +424,12 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
                 </div>
               </div>
 
-              <h2 className="text-4xl font-bold text-gray-900 mb-3">Verification Approved! 🎉</h2>
-              <p className="text-gray-600 text-lg mb-6 max-w-md mx-auto">
-                Your identity has been verified successfully. You now have access to all Orden Global apps.
-              </p>
+              <h2 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-3">{t('kyc.approved.title')}</h2>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">{t('kyc.approved.desc')}</p>
 
               {gid && (
                 <div className="bg-indigo-50 border-2 border-indigo-200 rounded-lg p-6 mb-8 max-w-md mx-auto">
-                  <p className="text-sm text-indigo-600 mb-1">Your GENESIS ID</p>
+                  <p className="text-sm text-indigo-600 mb-1">{t('kyc.approved.yourGid')}</p>
                   <p className="text-2xl font-mono font-bold text-indigo-900">{gid}</p>
                 </div>
               )}
@@ -382,9 +453,9 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
                 </div>
               </div>
 
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">Verification Failed</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{t('kyc.failed.title')}</h2>
               <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
-                {rejectionReason || 'Your verification could not be completed. Please try again with better lighting and a clearer document.'}
+                {rejectionReason || t('kyc.failed.desc')}
               </p>
 
               <div className="space-y-3 max-w-md mx-auto">
@@ -394,7 +465,7 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
                   className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition flex items-center justify-center"
                 >
                   <FiRefreshCw className="mr-2" />
-                  Try Again
+                  {t('common.retry')}
                 </button>
 
                 {!embedded && (

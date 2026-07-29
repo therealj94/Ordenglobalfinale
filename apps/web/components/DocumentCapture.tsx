@@ -307,7 +307,7 @@ export default function DocumentCapture({ onCapture, onError }: DocumentCaptureP
         {/* Camera Preview */}
         {useCamera && !currentImage && (
           <div className="relative mb-8 rounded-2xl overflow-hidden shadow-2xl bg-black">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full aspect-video object-cover" />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full aspect-[4/3] sm:aspect-video object-cover" />
 
             {cameraLoading && !cameraError && (
               <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">

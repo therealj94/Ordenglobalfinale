@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { FiCamera, FiCheck, FiArrowUp, FiArrowDown, FiArrowLeft, FiArrowRight, FiCameraOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useT } from '@/lib/i18n';
 import {
   computeHeadPose,
   matchesTargetPose,
@@ -18,6 +19,7 @@ const MANUAL_FALLBACK_AFTER_MS = 9000; // show "Capture Anyway" if stuck this lo
 const SHOW_DEBUG_ANGLES = process.env.NODE_ENV !== 'production';
 
 export default function FacialCapture({ onCapture, onError }: FacialCaptureProps) {
+  const t = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -255,12 +257,10 @@ export default function FacialCapture({ onCapture, onError }: FacialCaptureProps
   const isLoading = cameraLoading || modelLoading;
 
   return (
-    <div className="p-8 md:p-12">
+    <div className="p-4 sm:p-8 md:p-12">
       <div className="max-w-2xl mx-auto">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Facial Verification</h2>
-        <p className="text-gray-600 mb-8">
-          Hold each position steady — the camera will capture automatically once it confirms the angle.
-        </p>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{t('facial.title')}</h2>
+        <p className="text-gray-600 mb-6">{t('facial.desc')}</p>
 
         {/* Progress */}
         <div className="mb-8">
@@ -279,20 +279,20 @@ export default function FacialCapture({ onCapture, onError }: FacialCaptureProps
         </div>
 
         {/* Video Preview + overlays */}
-        <div className="relative mb-8 rounded-2xl overflow-hidden shadow-2xl bg-black">
+        <div className="relative mb-6 rounded-2xl overflow-hidden shadow-2xl bg-black">
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-full aspect-video object-cover [transform:scaleX(-1)] bg-gray-900"
+            className="w-full aspect-[3/4] sm:aspect-video object-cover [transform:scaleX(-1)] bg-gray-900"
           />
 
           {isLoading && !cameraError && (
             <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
               <div className="text-center text-white">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
-                <p>{cameraLoading ? 'Initializing camera...' : 'Loading face detector...'}</p>
+                <p>{cameraLoading ? t('facial.initCamera') : t('facial.loadingDetector')}</p>
               </div>
             </div>
           )}
@@ -301,7 +301,7 @@ export default function FacialCapture({ onCapture, onError }: FacialCaptureProps
             <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
               <div className="text-center text-white px-6">
                 <FiCameraOff size={40} className="mx-auto mb-4 text-red-400" />
-                <p>Couldn't access your camera. Check browser permissions and try again.</p>
+                <p>{t('facial.cameraError')}</p>
               </div>
             </div>
           )}
@@ -311,7 +311,7 @@ export default function FacialCapture({ onCapture, onError }: FacialCaptureProps
               {/* Overlay guide, color reflects detection state */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div
-                  className={`relative w-64 h-80 border-4 rounded-3xl shadow-lg transition-colors ${
+                  className={`relative w-48 h-64 sm:w-64 sm:h-80 border-4 rounded-3xl shadow-lg transition-colors ${
                     faceDetected ? 'border-cyan-400' : 'border-gray-500'
                   }`}
                 >

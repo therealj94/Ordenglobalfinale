@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { LanguageToggle } from '@/lib/i18n';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/hooks/useAuth';
 import { FiMenu, FiX, FiLogOut, FiUser } from 'react-icons/fi';
@@ -20,8 +21,14 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <div className="text-2xl font-bold text-blue-600">GENESIS ID</div>
+            <div className="text-xl sm:text-2xl font-bold text-blue-600">GENESIS ID</div>
           </Link>
+
+          {/* Language switch lives in the header so it's reachable from every
+              page, including mid-verification. */}
+          <div className="ml-auto mr-3">
+            <LanguageToggle tone="dark" />
+          </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
