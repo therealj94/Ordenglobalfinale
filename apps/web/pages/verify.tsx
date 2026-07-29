@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import KYCFlow from '@/components/KYCFlow';
-import { upgradeOnboardingSession } from '@/lib/onboardingSession';
 import { useT, LanguageToggle } from '@/lib/i18n';
 import { FiAlertCircle, FiLogIn } from 'react-icons/fi';
 
@@ -63,17 +62,13 @@ export default function VerifyPage() {
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 py-6 sm:py-8">
-        <KYCFlow
-          userId={userId as string}
-          onSuccess={async () => {
-            // A user who just registered is still holding the short-lived
-            // onboarding token, which only authorizes the KYC endpoints — the
-            // dashboard would bounce them straight back to login. Now that
-            // they're verified, trade it for a real session first.
-            await upgradeOnboardingSession();
-            router.push('/dashboard');
-          }}
-        />
+        {/* Deliberately no automatic navigation on success. Jumping straight
+            to the dashboard meant an already-approved user opening this page
+            saw the steps flash past and the page apparently close itself —
+            and if the session exchange failed on the way, they landed on the
+            login screen with no idea what had happened. The approved screen
+            now stays put and its button does the moving. */}
+        <KYCFlow userId={userId as string} />
       </div>
     </Layout>
   );

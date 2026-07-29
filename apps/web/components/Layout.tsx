@@ -2,6 +2,7 @@ import React from 'react';
 import { useRouter } from 'next/router';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import BuildStamp from './BuildStamp';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -27,6 +28,11 @@ export default function Layout({ children, withSidebar = false }: LayoutProps) {
           {children}
         </main>
       </div>
+
+      {/* On every page, so "which build am I looking at?" is never a guess. */}
+      <footer className="py-4 px-4">
+        <BuildStamp className="text-white" />
+      </footer>
     </div>
   );
 }

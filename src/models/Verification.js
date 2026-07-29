@@ -64,7 +64,12 @@ module.exports = (sequelize) => {
     isPEP: {
       type: DataTypes.BOOLEAN,
       allowNull: true,
-      defaultValue: false
+      defaultValue: false,
+      // Spelled out because the table's underscored naming turns "isPEP" into
+      // "is_p_e_p" — every capital starts a new word — while the migration
+      // created "is_pep". Without this every query touching this column fails,
+      // which took down the whole status endpoint.
+      field: 'is_pep'
     },
     pepDetails: {
       type: DataTypes.TEXT,

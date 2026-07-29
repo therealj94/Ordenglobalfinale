@@ -8,6 +8,7 @@ import DocumentCapture, { DocumentCaptureResult } from './DocumentCapture';
 import ReviewProgress from './ReviewProgress';
 import { useT, LanguageToggle } from '@/lib/i18n';
 import { upgradeOnboardingSession } from '@/lib/onboardingSession';
+import { isOnboardingToken } from '@/lib/token';
 import {
   FiCheckCircle,
   FiLoader,
@@ -216,11 +217,19 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
    */
   const goToDashboard = async () => {
     setLeaving(true);
-    try {
-      await upgradeOnboardingSession();
-    } finally {
-      router.push('/dashboard');
+    const upgraded = await upgradeOnboardingSession();
+    // Already holding a full session (signed in normally) — nothing to trade.
+    const alreadySignedIn = !isOnboardingToken();
+
+    if (!upgraded && !alreadySignedIn) {
+      // The exchange only refuses while the account isn't verified yet.
+      // Navigating anyway would bounce off the dashboard's own guard and dump
+      // the user on the login screen with no explanation — say it instead.
+      setLeaving(false);
+      toast.error(t('kyc.sessionPending'));
+      return;
     }
+    router.push('/dashboard');
   };
 
   const handleRetry = () => {
