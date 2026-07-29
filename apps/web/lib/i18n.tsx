@@ -99,6 +99,14 @@ const DICT: Record<string, { es: string; en: string }> = {
     en: 'Your verification could not be completed. Please try again with better lighting and a clearer document.'
   },
 
+  'verify.needSession.title': {
+    es: 'Inicia sesión para continuar',
+    en: 'Sign in to continue'
+  },
+  'verify.needSession.desc': {
+    es: 'Para retomar tu verificación necesitamos confirmar que eres tú. Entra con tu correo y contraseña.',
+    en: 'To pick your verification back up we need to confirm it\'s you. Sign in with your email and password.'
+  },
   'kyc.resume.title': { es: 'Retomando donde quedaste…', en: 'Picking up where you left off...' },
 
   // — Facial capture —

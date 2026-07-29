@@ -46,6 +46,21 @@ class ApiClient {
             return Promise.reject(error);
           }
 
+          // Nothing was ever stored, so there's no session to have expired.
+          // Redirecting here sent pages that legitimately load without a
+          // credential — /verify reached from a link, say — into a loop:
+          // request 401s, this navigates to login, the page loads and asks
+          // again. Let the page decide what to show instead.
+          if (typeof window !== 'undefined' && !localStorage.getItem('accessToken')) {
+            return Promise.reject(error);
+          }
+
+          // Already on an auth screen: navigating to it again would reload the
+          // page out from under whatever the user is typing.
+          if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')) {
+            return Promise.reject(error);
+          }
+
           try {
             const refreshToken = localStorage.getItem('refreshToken');
             if (!refreshToken) {

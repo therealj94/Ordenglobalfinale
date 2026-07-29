@@ -92,6 +92,8 @@ export default function KYCFlow({ userId, onSuccess, onStatusChange, embedded = 
         }
       } catch {
         // 404 means nothing has been submitted yet — a genuinely fresh start.
+        // Any other failure lands here too, and starting the flow is still the
+        // useful answer: better than holding a spinner that never resolves.
         if (!cancelled) setStep('info');
       }
     })();
