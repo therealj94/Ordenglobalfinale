@@ -21,7 +21,7 @@ export const COIN_INFO = {
   ORIGEN: {
     title: 'Origen (ORIGEN)',
     desc: 'Cripto nativa de la blockchain de Orden Global, usada para pagos y transferencias dentro del ecosistema. Su valor se ancla a un gramín: 1/55 de un gramo de oro.',
-    rows: [['Tipo', 'Cripto nativa · pagos'], ['Respaldo', '1 gramín = 1/55 g oro'], ['Network ID', '8532'], ['Contrato', 'Token Nativo']],
+    rows: [['Tipo', 'Cripto nativa · pagos'], ['Respaldo', '1 gramín = 1/55 g oro'], ['Network ID', '5550'], ['Contrato', 'Token Nativo']],
   },
   ONDK: {
     title: 'ONDK',
